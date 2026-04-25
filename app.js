@@ -338,12 +338,12 @@ function App(){
               },React.createElement('img',{src:mg.icon,className:'muscle-btn-icon',alt:mg.label})))
             ),
             React.createElement('div',{className:'sets-header'},
-              React.createElement('span',null,'Сет'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'Вага'),React.createElement('span',null,'СВ'),React.createElement('span',null,'')
+              React.createElement('span',null,'Сет'),React.createElement('span',null,'Вага'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'СВ'),React.createElement('span',null,'')
             ),
             ex.sets.map((s,si)=>React.createElement('div',{key:si,className:'set-row'},
               React.createElement('div',{className:'set-badge'},si+1),
-              React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:s.prevReps||'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
               React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:s.prevWeight||'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
+              React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:s.prevReps||'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
               React.createElement('button',{className:'bw-btn'+(s.bw?' active':''),onClick:()=>toggleBW(ei,si)},'СВ'),
               ex.sets.length>1?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},'×'):React.createElement('div')
             )),
