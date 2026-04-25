@@ -27,7 +27,7 @@ function formatFull(key) {
 }
 
 // ── empty helpers ─────────────────────────────────────────────────────
-const mkSet  = () => ({ reps:'', weight:'' });
+const mkSet  = () => ({ reps:'', weight:'', isBodyweight:false });
 const mkExer = () => ({ name:'', sets:[mkSet()] });
 const mkDay  = () => ({ muscle:'', exercises:[mkExer()] });
 
@@ -138,8 +138,12 @@ function App() {
         .map(e => ({
           name: e.name.trim(),
           sets: e.sets
-            .filter(s => s.reps !== '' || s.weight !== '')
-            .map(s => ({ reps: s.reps==='' ? 0 : Number(s.reps), weight: s.weight==='' ? 0 : Number(s.weight) }))
+            .filter(s => s.reps !== '' || s.weight !== '' || s.isBodyweight)
+            .map(s => ({
+              reps: s.reps === '' ? 0 : Number(s.reps),
+              weight: s.isBodyweight ? 0 : (s.weight === '' ? 0 : Number(s.weight)),
+              isBodyweight: !!s.isBodyweight
+            }))
         }))
         .filter(e => e.sets.length > 0)
     };
@@ -216,6 +220,7 @@ function App() {
               React.createElement('span', null, 'Сет'),
               React.createElement('span', null, 'Повт.'),
               React.createElement('span', null, 'Вага кг'),
+              React.createElement('span', null, 'СВ'),
               React.createElement('span', null, '')
             ),
             // set rows
@@ -228,14 +233,20 @@ function App() {
                   value:s.reps, onChange:e=>setSetField(ei,si,'reps',e.target.value)
                 }),
                 React.createElement('input', {
-                  className:'set-input', type:'number', inputMode:'decimal',
+                  className:'set-input', type:'text', inputMode:'decimal',
                   placeholder:'0',
-                  value:s.weight, onChange:e=>setSetField(ei,si,'weight',e.target.value)
+                  value:s.isBodyweight ? 'СВ' : s.weight,
+                  onChange:e=>setSetField(ei,si,'weight',e.target.value),
+                  disabled: s.isBodyweight,
+                  style: s.isBodyweight ? { opacity: 0.7 } : {}
                 }),
-                ex.sets.length > 1 &&
                 React.createElement('button', {
+                  className:'bw-btn' + (s.isBodyweight ? ' active' : ''),
+                  onClick: () => setSetField(ei, si, 'isBodyweight', !s.isBodyweight)
+                }, 'СВ'),
+                ex.sets.length > 1 ? React.createElement('button', {
                   className:'set-del-btn', onClick:()=>removeSet(ei,si)
-                }, '×')
+                }, '×') : React.createElement('div', null)
               )
             ),
             React.createElement('button', { className:'add-set-btn', onClick:()=>addSet(ei) },
