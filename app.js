@@ -415,16 +415,16 @@ function App(){
             React.createElement('thead',null,
               React.createElement('tr',null,
                 React.createElement('th',null,'Сет'),
-                React.createElement('th',null,'Повт.'),
                 React.createElement('th',null,'Вага'),
+                React.createElement('th',null,'Повт.'),
                 React.createElement('th',null,'Об\'єм')
               )
             ),
             React.createElement('tbody',null,
               ex.sets.map((s,j)=>React.createElement('tr',{key:j},
                 React.createElement('td',null,React.createElement('span',{className:'set-badge'},j+1)),
-                React.createElement('td',null,s.reps),
                 React.createElement('td',null,s.bw?'СВ ('+s.weight+'кг)':s.weight+' кг'),
+                React.createElement('td',null,s.reps),
                 React.createElement('td',{className:'detail-vol'},(Number(s.reps)||0)*(Number(s.weight)||0)+' кг')
               ))
             )
