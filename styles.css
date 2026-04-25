@@ -186,6 +186,15 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .tonnage-item-val{font-size:18px;font-weight:800;color:var(--text1)}
 .tonnage-item-lbl{font-size:10px;color:var(--text3);margin-top:2px;text-transform:uppercase;letter-spacing:.4px}
 
+/* muscle tonnage grid */
+.muscle-tonnage-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
+.mt-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;display:flex;align-items:center;gap:10px}
+.mt-emoji{font-size:24px;width:36px;height:36px;border-radius:10px;background:var(--bg4);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.mt-info{flex:1;min-width:0}
+.mt-name{font-size:12px;font-weight:700;color:var(--text1)}
+.mt-tonnage{font-size:14px;font-weight:800;background:linear-gradient(135deg,var(--accent2),var(--green2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-top:1px}
+.mt-details{font-size:10px;color:var(--text3);margin-top:2px}
+
 .section-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin:0 0 10px}
 .history-list{display:flex;flex-direction:column;gap:8px}
 .history-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;cursor:pointer;position:relative;overflow:hidden;transition:all .2s}

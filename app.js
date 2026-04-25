@@ -428,6 +428,23 @@ function App(){
       history.length===0
         ?React.createElement('div',{className:'empty-state'},React.createElement('div',{className:'e-icon'},'📔'),React.createElement('h3',null,'Поки пусто'),React.createElement('p',null,'Записуй тренування в календарі'))
         :React.createElement(React.Fragment,null,
+          // per-muscle tonnage
+          muscleStats.length>0&&React.createElement(React.Fragment,null,
+            React.createElement('div',{className:'section-label'},'Тоннаж по групах м\'язів'),
+            React.createElement('div',{className:'muscle-tonnage-grid'},
+              muscleStats.map(([name,stat],i)=>{
+                const t=stat.tonnage;
+                return React.createElement('div',{key:name,className:'mt-card'},
+                  React.createElement('div',{className:'mt-emoji'},name.split(' ')[0]),
+                  React.createElement('div',{className:'mt-info'},
+                    React.createElement('div',{className:'mt-name'},name.split(' ').slice(1).join(' ')),
+                    React.createElement('div',{className:'mt-tonnage'},t>1000?(t/1000).toFixed(1)+' т':t+' кг'),
+                    React.createElement('div',{className:'mt-details'},stat.sets+' підх. · '+stat.reps+' повт. · '+stat.days+' дн.')
+                  )
+                );
+              })
+            )
+          ),
           React.createElement('div',{className:'section-label'},'Всі тренування ('+history.length+')'),
           React.createElement('div',{className:'history-list'},history.map(([k,w])=>{
             const ton=calcTonnage(w);
