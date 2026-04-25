@@ -1,6 +1,16 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
-// muscles are user-defined, stored in settings
+// muscles are emoji-based, assigned per exercise
+const MUSCLE_EMOJIS = [
+  {id:'chest',emoji:'🫁',label:'Груди'},
+  {id:'back',emoji:'🔙',label:'Спина'},
+  {id:'legs',emoji:'🦵',label:'Ноги'},
+  {id:'shoulders',emoji:'🎯',label:'Плечі'},
+  {id:'biceps',emoji:'💪',label:'Біцепс'},
+  {id:'triceps',emoji:'💎',label:'Трицепс'},
+  {id:'abs',emoji:'🧱',label:'Прес'},
+  {id:'cardio',emoji:'🫀',label:'Кардіо'},
+];
 const STORAGE = 'gymbook-data';
 const SETTINGS_KEY = 'gymbook-settings';
 const WEEKDAYS = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -71,7 +81,7 @@ function todayKey(){return toKey(new Date())}
 function fmtFull(k){const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long'})}
 function fmtShort(k){const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('uk-UA',{day:'numeric',month:'short'})}
 const mkSet=()=>({reps:'',weight:'',bw:false});
-const mkEx=()=>({name:'',sets:[mkSet()]});
+const mkEx=()=>({name:'',muscle:'',sets:[mkSet()]});
 const mkDay=()=>({muscle:'',exercises:[mkEx()]});
 
 function buildGrid(y,m){const f=new Date(y,m,1);const dow=f.getDay();const days=new Date(y,m+1,0).getDate();const c=[];for(let i=0;i<dow;i++)c.push(null);for(let d=1;d<=days;d++)c.push(d);return c}
@@ -165,6 +175,7 @@ function App(){
   // draft ops
   function setMuscle(m){setDraft(p=>({...p,muscle:m}))}
   function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
+  function setExMuscle(ei,m){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,muscle:e.muscle===m?'':m}:e)}))}
   function setField(ei,si,f,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>j!==si?s:{...s,[f]:v})})}))}
   function addSet(ei){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:[...e.sets,mkSet()]})}))}
   function rmSet(ei,si){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.filter((_,j)=>j!==si)})}))}
@@ -183,7 +194,7 @@ function App(){
 
   function saveDay(){
     if(!draft)return;
-    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(settings.userWeight)||0:Number(s.weight)||0,bw:!!s.bw}))})).filter(e=>e.sets.length>0)};
+    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(settings.userWeight)||0:Number(s.weight)||0,bw:!!s.bw}))})).filter(e=>e.sets.length>0)};
     if(!cl.exercises.length)return;
     setData(p=>({...p,[selected]:cl}));
     flash('✅ Збережено!');
@@ -201,14 +212,33 @@ function App(){
   const totalTonnage=Object.values(data).reduce((a,w)=>a+calcTonnage(w),0);
   const history=Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0]));
 
-  // muscle breakdown
+  // muscle breakdown — from exercise-level muscles
   const muscleStats=(()=>{
     const map={};
     Object.values(data).forEach(w=>{
-      if(!w.muscle)return;
-      if(!map[w.muscle])map[w.muscle]={days:0,sets:0,reps:0,tonnage:0};
-      map[w.muscle].days++;
-      w.exercises.forEach(e=>{map[w.muscle].sets+=e.sets.length;e.sets.forEach(s=>{map[w.muscle].reps+=Number(s.reps)||0;map[w.muscle].tonnage+=(Number(s.reps)||0)*(Number(s.weight)||0)})});
+      w.exercises.forEach(ex=>{
+        const m = ex.muscle || w.muscle || '';
+        if(!m) return;
+        const label = MUSCLE_EMOJIS.find(e=>e.id===m);
+        const name = label ? label.emoji+' '+label.label : m;
+        if(!map[name]) map[name]={days:0,sets:0,reps:0,tonnage:0};
+        map[name].sets += ex.sets.length;
+        ex.sets.forEach(s=>{
+          map[name].reps += Number(s.reps)||0;
+          map[name].tonnage += (Number(s.reps)||0)*(Number(s.weight)||0);
+        });
+      });
+    });
+    // count unique days per muscle
+    Object.values(data).forEach(w=>{
+      const seen = new Set();
+      w.exercises.forEach(ex=>{
+        const m = ex.muscle || w.muscle || '';
+        if(!m) return;
+        const label = MUSCLE_EMOJIS.find(e=>e.id===m);
+        const name = label ? label.emoji+' '+label.label : m;
+        if(!seen.has(name)){ seen.add(name); if(map[name]) map[name].days++; }
+      });
     });
     return Object.entries(map).sort((a,b)=>b[1].sets-a[1].sets);
   })();
@@ -267,21 +297,19 @@ function App(){
           )
         ),
         React.createElement('div',{className:'day-panel-body'},
-          React.createElement('div',{className:'muscle-row'},
-            (settings.muscles||[]).map(m=>React.createElement('button',{key:m,className:'muscle-tag'+(draft.muscle===m?' active':''),onClick:()=>setMuscle(m)},
-              m,
-              React.createElement('span',{className:'chip-del',onClick:e=>{e.stopPropagation();setSettings(s=>({...s,muscles:s.muscles.filter(x=>x!==m)}));if(draft.muscle===m)setMuscle('')}},'×')
-            )),
-            React.createElement('div',{className:'add-muscle-wrap'},
-              React.createElement('input',{className:'add-muscle-input',placeholder:'Нова група…',value:newMuscle,onChange:e=>setNewMuscle(e.target.value),
-                onKeyDown:e=>{if(e.key==='Enter'&&newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}
-              }),
-              React.createElement('button',{className:'add-muscle-btn',onClick:()=>{if(newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}},'+'))
-          ),
           draft.exercises.map((ex,ei)=>React.createElement('div',{key:ei,className:'exercise-block'},
             React.createElement('div',{className:'ex-name-row'},
               React.createElement('input',{className:'ex-name-input',placeholder:'Назва вправи…',value:ex.name,onChange:e=>setExName(ei,e.target.value)}),
               draft.exercises.length>1&&React.createElement('button',{className:'ex-remove-btn',onClick:()=>rmEx(ei)},'×')
+            ),
+            // emoji muscle selector per exercise
+            React.createElement('div',{className:'emoji-muscle-row'},
+              MUSCLE_EMOJIS.map(mg=>React.createElement('button',{
+                key:mg.id,
+                className:'emoji-muscle-btn'+(ex.muscle===mg.id?' active':''),
+                onClick:()=>setExMuscle(ei,mg.id),
+                title:mg.label
+              },mg.emoji))
             ),
             React.createElement('div',{className:'sets-header'},
               React.createElement('span',null,'Сет'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'Вага'),React.createElement('span',null,'СВ'),React.createElement('span',null,'')
@@ -354,7 +382,7 @@ function App(){
         const exTon=calcExTonnage(ex);
         return React.createElement('div',{key:i,className:'detail-ex-card'},
           React.createElement('div',{className:'detail-ex-header'},
-            React.createElement('div',{className:'detail-ex-name'},ex.name),
+            React.createElement('div',{className:'detail-ex-name'},(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?mg.emoji+' ':''})(),ex.name),
             React.createElement('div',{className:'detail-ex-ton'},exTon>1000?(exTon/1000).toFixed(1)+' т':exTon+' кг')
           ),
           React.createElement('table',{className:'detail-table'},
@@ -419,7 +447,7 @@ function App(){
               React.createElement('div',{className:'hc-exercises'},w.exercises.map((ex,i)=>{
                 const et=calcExTonnage(ex);
                 return React.createElement('div',{key:i,className:'hc-ex'},
-                  React.createElement('strong',null,ex.name),
+                  React.createElement('strong',null,(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?mg.emoji+' ':''})(),ex.name),
                   ` — ${ex.sets.length} підх. · ${et>1000?(et/1000).toFixed(1)+'т':et+'кг'}`+(ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
                 );
               }))
