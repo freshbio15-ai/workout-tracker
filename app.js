@@ -1,427 +1,279 @@
-const { useState, useEffect, useCallback, useRef } = React;
+const { useState, useEffect, useRef } = React;
 
-const MUSCLES = ['Спина','Груди','Ноги','Плечі','Біцепс','Трицепс','Прес','Кардіо','Весь тіл'];
-const STORAGE_KEY = 'gymbook-v2';
+const MUSCLES = ['Спина','Груди','Ноги','Плечі','Біцепс','Трицепс','Прес','Кардіо'];
+const STORAGE = 'gymbook-data';
+const SETTINGS_KEY = 'gymbook-settings';
 const WEEKDAYS = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
-const MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень',
-                'Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+const MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 
-// ── storage ──────────────────────────────────────────────────────────
-function load() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
-  catch { return {}; }
-}
-function save(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
+function load(k,def){try{return JSON.parse(localStorage.getItem(k))||def}catch{return def}}
+function persist(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function toKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function todayKey(){return toKey(new Date())}
+function fmtFull(k){const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long'})}
+function fmtShort(k){const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('uk-UA',{day:'numeric',month:'short'})}
+const mkSet=()=>({reps:'',weight:'',bw:false});
+const mkEx=()=>({name:'',sets:[mkSet()]});
+const mkDay=()=>({muscle:'',exercises:[mkEx()]});
 
-// ── date helpers ──────────────────────────────────────────────────────
-function toKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
-}
-function todayKey() { return toKey(new Date()); }
-function formatFull(key) {
-  const [y,m,d] = key.split('-').map(Number);
-  const date = new Date(y, m-1, d);
-  return date.toLocaleDateString('uk-UA', {weekday:'long', day:'numeric', month:'long'});
+function buildGrid(y,m){const f=new Date(y,m,1);const dow=f.getDay();const days=new Date(y,m+1,0).getDate();const c=[];for(let i=0;i<dow;i++)c.push(null);for(let d=1;d<=days;d++)c.push(d);return c}
+
+function calcTonnage(workout){
+  return workout.exercises.reduce((a,ex)=>a+ex.sets.reduce((b,s)=>{
+    const w=s.bw?Number(s.weight)||0:Number(s.weight)||0;
+    return b+(Number(s.reps)||0)*w;
+  },0),0);
 }
 
-// ── empty helpers ─────────────────────────────────────────────────────
-const mkSet  = () => ({ reps:'', weight:'', isBodyweight:false });
-const mkExer = () => ({ name:'', sets:[mkSet()] });
-const mkDay  = () => ({ muscle:'', exercises:[mkExer()] });
+// ══════════════════════════════════════════════════════════════════
+function App(){
+  const [data,setData]=useState(()=>load(STORAGE,{}));
+  const [settings,setSettings]=useState(()=>load(SETTINGS_KEY,{userWeight:''}));
+  const [tab,setTab]=useState('calendar');
+  const [calDate,setCalDate]=useState(new Date());
+  const [selected,setSelected]=useState(todayKey());
+  const [draft,setDraft]=useState(null);
+  const [toast,setToast]=useState(null);
+  const tRef=useRef(null);
 
-// ── calendar grid ─────────────────────────────────────────────────────
-function buildGrid(year, month) {
-  const first = new Date(year, month, 1);
-  const startDow = first.getDay(); // 0=Sun
-  const days = new Date(year, month+1, 0).getDate();
-  const cells = [];
-  for (let i=0; i<startDow; i++) cells.push(null);
-  for (let d=1; d<=days; d++) cells.push(d);
-  return cells;
-}
+  useEffect(()=>{persist(STORAGE,data)},[data]);
+  useEffect(()=>{persist(SETTINGS_KEY,settings)},[settings]);
 
-// ══════════════════════════════════════════════════════════════════════
-function App() {
-  const [data, setData]         = useState(load);           // { 'YYYY-MM-DD': {muscle, exercises} }
-  const [settings, setSettings] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('gymbook-settings')) || { userWeight: '' }; }
-    catch { return { userWeight: '' }; }
-  });
-  const [showSettings, setShowSettings] = useState(false);
-  const [calDate, setCalDate]   = useState(new Date());     // month being viewed
-  const [selected, setSelected] = useState(todayKey());     // currently selected day key
-  const [draft, setDraft]       = useState(null);           // editing draft for selected day
-  const [toast, setToast]       = useState(null);
-  const toastTimer = useRef(null);
+  useEffect(()=>{
+    if(!selected){setDraft(null);return}
+    const ex=data[selected];
+    if(ex) setDraft(JSON.parse(JSON.stringify(ex)));
+    else setDraft(mkDay());
+  },[selected]);
 
-  useEffect(() => { save(data); }, [data]);
-  useEffect(() => { localStorage.setItem('gymbook-settings', JSON.stringify(settings)); }, [settings]);
+  function flash(m){clearTimeout(tRef.current);setToast(m);tRef.current=setTimeout(()=>setToast(null),1800)}
 
-  // open day → load existing or blank draft
-  useEffect(() => {
-    if (!selected) { setDraft(null); return; }
-    const existing = data[selected];
-    if (existing) {
-      setDraft(JSON.parse(JSON.stringify(existing)));
-    } else {
-      setDraft(mkDay());
-    }
-  }, [selected]);
+  // calendar
+  const year=calDate.getFullYear(), month=calDate.getMonth();
+  const grid=buildGrid(year,month);
+  const tKey=todayKey();
+  function selectDay(d){if(!d)return;setSelected(toKey(new Date(year,month,d)))}
 
-  function showToast(msg) {
-    clearTimeout(toastTimer.current);
-    setToast(msg);
-    toastTimer.current = setTimeout(() => setToast(null), 1800);
+  // draft ops
+  function setMuscle(m){setDraft(p=>({...p,muscle:m}))}
+  function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
+  function setField(ei,si,f,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>j!==si?s:{...s,[f]:v})})}))}
+  function addSet(ei){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:[...e.sets,mkSet()]})}))}
+  function rmSet(ei,si){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.filter((_,j)=>j!==si)})}))}
+  function addEx(){setDraft(p=>({...p,exercises:[...p.exercises,mkEx()]}))}
+  function rmEx(ei){setDraft(p=>({...p,exercises:p.exercises.filter((_,i)=>i!==ei)}))}
+
+  function toggleBW(ei,si){
+    const uw=settings.userWeight;
+    if(!uw){flash('⚙️ Вкажи свою вагу в налаштуваннях');setTab('settings');return}
+    setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>{
+      if(j!==si)return s;
+      const nb=!s.bw;
+      return{...s,bw:nb,weight:nb?uw:''};
+    })})}));
   }
 
-  // ── calendar nav ──────────────────────────────────────────────────
-  function prevMonth() { setCalDate(d => new Date(d.getFullYear(), d.getMonth()-1, 1)); }
-  function nextMonth() { setCalDate(d => new Date(d.getFullYear(), d.getMonth()+1, 1)); }
-
-  const year  = calDate.getFullYear();
-  const month = calDate.getMonth();
-  const grid  = buildGrid(year, month);
-  const todayStr = todayKey();
-
-  function selectDay(d) {
-    if (!d) return;
-    const key = toKey(new Date(year, month, d));
-    setSelected(key);
+  function saveDay(){
+    if(!draft)return;
+    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(settings.userWeight)||0:Number(s.weight)||0,bw:!!s.bw}))})).filter(e=>e.sets.length>0)};
+    if(!cl.exercises.length)return;
+    setData(p=>({...p,[selected]:cl}));
+    flash('✅ Збережено!');
   }
 
-  // ── draft helpers ─────────────────────────────────────────────────
-  function setMuscle(m) {
-    setDraft(prev => ({ ...prev, muscle: m }));
-  }
+  function deleteDay(){setData(p=>{const n={...p};delete n[selected];return n});setDraft(mkDay());flash('🗑 Видалено')}
 
-  function setExName(ei, val) {
-    setDraft(prev => {
-      const ex = prev.exercises.map((e,i) => i===ei ? {...e, name:val} : e);
-      return { ...prev, exercises:ex };
-    });
-  }
+  // stats
+  const allKeys=Object.keys(data);
+  const totalDays=allKeys.length;
+  const totalSets=Object.values(data).reduce((a,d)=>a+d.exercises.reduce((b,e)=>b+e.sets.length,0),0);
+  const weekStart=(()=>{const n=new Date();const s=new Date(n);s.setDate(n.getDate()-n.getDay());s.setHours(0,0,0,0);return s})();
+  const thisWeek=allKeys.filter(k=>new Date(k+'T00:00:00')>=weekStart).length;
+  const totalTonnage=Object.values(data).reduce((a,w)=>a+calcTonnage(w),0);
+  const history=Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0]));
 
-  function setSetField(ei, si, field, val) {
-    setDraft(prev => {
-      const ex = prev.exercises.map((e,i) => i!==ei ? e : {
-        ...e, sets: e.sets.map((s,j) => j!==si ? s : {...s, [field]:val})
-      });
-      return { ...prev, exercises:ex };
-    });
-  }
-
-  function addSet(ei) {
-    setDraft(prev => {
-      const ex = prev.exercises.map((e,i) => i!==ei ? e : {...e, sets:[...e.sets, mkSet()]});
-      return { ...prev, exercises:ex };
-    });
-  }
-
-  function removeSet(ei, si) {
-    setDraft(prev => {
-      const ex = prev.exercises.map((e,i) => i!==ei ? e : {...e, sets:e.sets.filter((_,j)=>j!==si)});
-      return { ...prev, exercises:ex };
-    });
-  }
-
-  function addExercise() {
-    setDraft(prev => ({ ...prev, exercises:[...prev.exercises, mkExer()] }));
-  }
-
-  function removeExercise(ei) {
-    setDraft(prev => ({ ...prev, exercises:prev.exercises.filter((_,i)=>i!==ei) }));
-  }
-
-  // ── save / delete ─────────────────────────────────────────────────
-  function saveDay() {
-    if (!draft) return;
-    const cleaned = {
-      muscle: draft.muscle,
-      exercises: draft.exercises
-        .filter(e => e.name.trim())
-        .map(e => ({
-          name: e.name.trim(),
-          sets: e.sets
-            .filter(s => s.reps !== '' || s.weight !== '' || s.isBodyweight)
-            .map(s => ({
-              reps: s.reps === '' ? 0 : Number(s.reps),
-              weight: s.isBodyweight ? 0 : (s.weight === '' ? 0 : Number(s.weight)),
-              isBodyweight: !!s.isBodyweight
-            }))
+  // ─── CALENDAR TAB ───────────────────────────────────────────────
+  function renderCalendar(){
+    const hasData=data[selected];
+    return React.createElement(React.Fragment,null,
+      // stats
+      React.createElement('div',{className:'stats-bar'},
+        React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},totalDays),React.createElement('div',{className:'stat-lbl'},'Днів')),
+        React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},totalSets),React.createElement('div',{className:'stat-lbl'},'Підходів')),
+        React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},thisWeek),React.createElement('div',{className:'stat-lbl'},'Тиждень'))
+      ),
+      // calendar
+      React.createElement('div',{className:'calendar-wrap'},
+        React.createElement('div',{className:'cal-nav'},
+          React.createElement('button',{className:'cal-arrow',onClick:()=>setCalDate(d=>new Date(d.getFullYear(),d.getMonth()-1,1))},'‹'),
+          React.createElement('span',{className:'cal-month'},`${MONTHS[month]} ${year}`),
+          React.createElement('button',{className:'cal-arrow',onClick:()=>setCalDate(d=>new Date(d.getFullYear(),d.getMonth()+1,1))},'›')
+        ),
+        React.createElement('div',{className:'cal-weekdays'},WEEKDAYS.map(w=>React.createElement('div',{key:w,className:'cal-wd'},w))),
+        React.createElement('div',{className:'cal-grid'},grid.map((d,idx)=>{
+          if(!d)return React.createElement('div',{key:'e'+idx,className:'cal-day empty'});
+          const k=toKey(new Date(year,month,d));
+          let cls='cal-day';
+          if(k===tKey)cls+=' today';
+          if(data[k])cls+=' has-workout';
+          if(k===selected)cls+=' selected';
+          return React.createElement('div',{key:d,className:cls,onClick:()=>selectDay(d)},d,data[k]&&React.createElement('div',{className:'day-dot'}));
         }))
-        .filter(e => e.sets.length > 0)
-    };
-    if (!cleaned.exercises.length) return;
-    setData(prev => ({ ...prev, [selected]: cleaned }));
-    showToast('✅ Тренування збережено!');
-  }
-
-  function deleteDay() {
-    setData(prev => { const n={...prev}; delete n[selected]; return n; });
-    setDraft(mkDay());
-    showToast('🗑 Видалено');
-  }
-
-  // ── stats ─────────────────────────────────────────────────────────
-  const totalDays = Object.keys(data).length;
-  const totalSets = Object.values(data).reduce((a,d) =>
-    a + d.exercises.reduce((b,e) => b + e.sets.length, 0), 0);
-  const thisWeek = (() => {
-    const now = new Date(); const start = new Date(now);
-    start.setDate(now.getDate() - now.getDay()); start.setHours(0,0,0,0);
-    return Object.keys(data).filter(k => new Date(k+'T00:00:00') >= start).length;
-  })();
-
-  // sorted history (newest first)
-  const history = Object.entries(data)
-    .sort((a,b) => b[0].localeCompare(a[0]))
-    .slice(0, 10);
-
-  // ── render helpers ────────────────────────────────────────────────
-  function renderDraft() {
-    if (!draft) return null;
-    const hasData = data[selected];
-    return React.createElement('div', { className:'day-panel' },
-      // header
-      React.createElement('div', { className:'day-panel-header' },
-        React.createElement('div', null,
-          React.createElement('div', { className:'day-panel-title' },
-            selected === todayStr ? '📅 Сьогодні' : '📅 ' + formatFull(selected)
-          ),
-          React.createElement('div', { className:'day-panel-date' },
-            hasData ? '✅ Тренування записано' : 'Нове тренування'
-          )
-        )
       ),
-      // body
-      React.createElement('div', { className:'day-panel-body' },
-        // muscle chips
-        React.createElement('div', { className:'muscle-row' },
-          MUSCLES.map(m =>
-            React.createElement('button', {
-              key:m, className:'muscle-tag'+(draft.muscle===m?' active':''),
-              onClick: () => setMuscle(m)
-            }, m)
+      // day editor
+      selected&&draft&&React.createElement('div',{className:'day-panel'},
+        React.createElement('div',{className:'day-panel-header'},
+          React.createElement('div',null,
+            React.createElement('div',{className:'day-panel-title'},selected===tKey?'📅 Сьогодні':'📅 '+fmtFull(selected)),
+            React.createElement('div',{className:'day-panel-date'},hasData?'✏️ Редагування':'Нове тренування')
           )
         ),
-        // exercises
-        draft.exercises.map((ex, ei) =>
-          React.createElement('div', { key:ei, className:'exercise-block' },
-            React.createElement('div', { className:'ex-name-row' },
-              React.createElement('input', {
-                className:'ex-name-input',
-                placeholder:'Назва вправи…',
-                value: ex.name,
-                onChange: e => setExName(ei, e.target.value)
-              }),
-              draft.exercises.length > 1 &&
-              React.createElement('button', {
-                className:'ex-remove-btn', onClick:()=>removeExercise(ei)
-              }, '×')
+        React.createElement('div',{className:'day-panel-body'},
+          React.createElement('div',{className:'muscle-row'},MUSCLES.map(m=>React.createElement('button',{key:m,className:'muscle-tag'+(draft.muscle===m?' active':''),onClick:()=>setMuscle(m)},m))),
+          draft.exercises.map((ex,ei)=>React.createElement('div',{key:ei,className:'exercise-block'},
+            React.createElement('div',{className:'ex-name-row'},
+              React.createElement('input',{className:'ex-name-input',placeholder:'Назва вправи…',value:ex.name,onChange:e=>setExName(ei,e.target.value)}),
+              draft.exercises.length>1&&React.createElement('button',{className:'ex-remove-btn',onClick:()=>rmEx(ei)},'×')
             ),
-            // sets header
-            React.createElement('div', { className:'sets-header' },
-              React.createElement('span', null, 'Сет'),
-              React.createElement('span', null, 'Повт.'),
-              React.createElement('span', null, 'Вага кг'),
-              React.createElement('span', null, 'СВ'),
-              React.createElement('span', null, '')
+            React.createElement('div',{className:'sets-header'},
+              React.createElement('span',null,'Сет'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'Вага'),React.createElement('span',null,'СВ'),React.createElement('span',null,'')
             ),
-            // set rows
-            ex.sets.map((s, si) =>
-              React.createElement('div', { key:si, className:'set-row' },
-                React.createElement('div', { className:'set-badge' }, si+1),
-                React.createElement('input', {
-                  className:'set-input', type:'number', inputMode:'numeric',
-                  placeholder:'12',
-                  value:s.reps, onChange:e=>setSetField(ei,si,'reps',e.target.value)
-                }),
-                React.createElement('input', {
-                  className:'set-input', type:'text', inputMode:'decimal',
-                  placeholder:'0',
-                  value:s.isBodyweight ? 'СВ' : s.weight,
-                  onChange:e=>{
-                    setSetField(ei,si,'weight',e.target.value);
-                    setSetField(ei,si,'isBodyweight',false);
-                  },
-                  disabled: s.isBodyweight,
-                  style: s.isBodyweight ? { opacity: 0.7 } : {}
-                }),
-                React.createElement('button', {
-                  className:'bw-btn' + (s.isBodyweight ? ' active' : ''),
-                  onClick: () => {
-                    if (!settings.userWeight) {
-                      showToast('⚙️ Вкажіть свою вагу в налаштуваннях');
-                      setShowSettings(true);
-                      return;
-                    }
-                    const newState = !s.isBodyweight;
-                    setDraft(prev => {
-                      const ex = prev.exercises.map((e,i) => i!==ei ? e : {
-                        ...e, sets: e.sets.map((set,j) => j!==si ? set : {
-                          ...set, isBodyweight: newState, weight: newState ? settings.userWeight : ''
-                        })
-                      });
-                      return { ...prev, exercises:ex };
-                    });
-                  }
-                }, 'СВ'),
-                ex.sets.length > 1 ? React.createElement('button', {
-                  className:'set-del-btn', onClick:()=>removeSet(ei,si)
-                }, '×') : React.createElement('div', null)
-              )
-            ),
-            React.createElement('button', { className:'add-set-btn', onClick:()=>addSet(ei) },
-              '+ Підхід'
-            )
-          )
-        ),
-        React.createElement('button', { className:'add-ex-btn', onClick:addExercise },
-          '+ Додати вправу'
-        ),
-        React.createElement('button', { className:'save-btn', onClick:saveDay },
-          hasData ? '💾 Оновити тренування' : '✅ Зберегти тренування'
-        ),
-        hasData && React.createElement('button', { className:'del-day-btn', onClick:deleteDay },
-          '🗑 Видалити день'
+            ex.sets.map((s,si)=>React.createElement('div',{key:si,className:'set-row'},
+              React.createElement('div',{className:'set-badge'},si+1),
+              React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
+              React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
+              React.createElement('button',{className:'bw-btn'+(s.bw?' active':''),onClick:()=>toggleBW(ei,si)},'СВ'),
+              ex.sets.length>1?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},'×'):React.createElement('div')
+            )),
+            React.createElement('button',{className:'add-set-btn',onClick:()=>addSet(ei)},'+ Підхід')
+          )),
+          React.createElement('button',{className:'add-ex-btn',onClick:addEx},'+ Додати вправу'),
+          React.createElement('button',{className:'save-btn',onClick:saveDay},hasData?'💾 Оновити':'✅ Зберегти тренування'),
+          hasData&&React.createElement('button',{className:'del-day-btn',onClick:deleteDay},'🗑 Видалити')
         )
       )
     );
   }
 
-  function renderHistory() {
-    if (!history.length) return React.createElement('div', { className:'empty-hint' },
-      React.createElement('div', { className:'e-icon' }, '📔'),
-      React.createElement('h3', null, 'Блокнот порожній'),
-      React.createElement('p', null, 'Обери день у календарі та запиши перше тренування!')
-    );
-
-    return React.createElement('div', null,
-      React.createElement('div', { className:'section-label' }, 'Останні тренування'),
-      React.createElement('div', { className:'history-list' },
-        history.map(([key, w]) =>
-          React.createElement('div', {
-            key, className:'history-card',
-            onClick: () => {
-              const [y,m,d] = key.split('-').map(Number);
-              setCalDate(new Date(y, m-1, 1));
-              setSelected(key);
-              window.scrollTo({ top:0, behavior:'smooth' });
-            }
-          },
-            React.createElement('div', { className:'hc-top' },
-              React.createElement('div', null,
-                React.createElement('div', { className:'hc-title' },
-                  key === todayStr ? 'Сьогодні' : formatFull(key)
+  // ─── HISTORY TAB ────────────────────────────────────────────────
+  function renderHistory(){
+    return React.createElement(React.Fragment,null,
+      React.createElement('div',{className:'history-header'},React.createElement('h2',null,'📊 Історія')),
+      // tonnage card
+      React.createElement('div',{className:'tonnage-card'},
+        React.createElement('div',{className:'tonnage-value'},(totalTonnage/1000).toFixed(1)+' т'),
+        React.createElement('div',{className:'tonnage-label'},'Загальний тоннаж'),
+        React.createElement('div',{className:'tonnage-row'},
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},totalDays),React.createElement('div',{className:'tonnage-item-lbl'},'Тренувань')),
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},totalSets),React.createElement('div',{className:'tonnage-item-lbl'},'Підходів')),
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},thisWeek),React.createElement('div',{className:'tonnage-item-lbl'},'Цей тижд.'))
+        )
+      ),
+      history.length===0
+        ?React.createElement('div',{className:'empty-state'},React.createElement('div',{className:'e-icon'},'📔'),React.createElement('h3',null,'Поки пусто'),React.createElement('p',null,'Записуй тренування в календарі'))
+        :React.createElement(React.Fragment,null,
+          React.createElement('div',{className:'section-label'},'Всі тренування ('+history.length+')'),
+          React.createElement('div',{className:'history-list'},history.map(([k,w])=>{
+            const ton=calcTonnage(w);
+            return React.createElement('div',{key:k,className:'history-card',onClick:()=>{
+              const[y,m]=k.split('-').map(Number);setCalDate(new Date(y,m-1,1));setSelected(k);setTab('calendar');
+            }},
+              React.createElement('div',{className:'hc-top'},
+                React.createElement('div',null,
+                  React.createElement('div',{className:'hc-title'},k===tKey?'Сьогодні':fmtFull(k)),
+                  React.createElement('div',{className:'hc-date'},k)
                 ),
-                React.createElement('div', { className:'hc-date' }, key)
+                w.muscle&&React.createElement('span',{className:'hc-muscle'},w.muscle)
               ),
-              w.muscle && React.createElement('span', { className:'hc-muscle' }, w.muscle)
-            ),
-            React.createElement('div', { className:'hc-stats' },
-              React.createElement('span', { className:'hc-stat' },
-                React.createElement('strong', null, w.exercises.length), ' вправ'
+              React.createElement('div',{className:'hc-stats'},
+                React.createElement('span',{className:'hc-stat'},React.createElement('strong',null,w.exercises.length),' вправ'),
+                React.createElement('span',{className:'hc-stat'},React.createElement('strong',null,w.exercises.reduce((a,e)=>a+e.sets.length,0)),' підх.'),
+                React.createElement('span',{className:'hc-stat'},React.createElement('strong',null,ton>1000?(ton/1000).toFixed(1)+'т':ton+'кг'),' тоннаж')
               ),
-              React.createElement('span', { className:'hc-stat' },
-                React.createElement('strong', null, w.exercises.reduce((a,e)=>a+e.sets.length,0)), ' підходів'
-              ),
-              React.createElement('span', { className:'hc-stat' },
-                React.createElement('strong', null,
-                  w.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0)*(Number(s.weight)||0),0),0).toFixed(0)
-                ), ' кг total'
-              )
-            )
+              React.createElement('div',{className:'hc-exercises'},w.exercises.map((ex,i)=>React.createElement('div',{key:i,className:'hc-ex'},
+                React.createElement('strong',null,ex.name),` — ${ex.sets.length} підх.`+(ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
+              )))
+            );
+          }))
+        )
+    );
+  }
+
+  // ─── SETTINGS TAB ──────────────────────────────────────────────
+  function renderSettings(){
+    return React.createElement(React.Fragment,null,
+      React.createElement('div',{className:'settings-section'},
+        React.createElement('h2',null,'⚙️ Налаштування'),
+        // weight card
+        React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,'🏋️ Власна вага'),
+          React.createElement('p',null,'Ця вага буде автоматично підставлена, коли ти натиснеш кнопку «СВ» біля підходу'),
+          React.createElement('input',{className:'settings-input',type:'number',inputMode:'decimal',placeholder:'Наприклад 75',value:settings.userWeight,
+            onChange:e=>setSettings(s=>({...s,userWeight:e.target.value}))}),
+          settings.userWeight&&React.createElement('div',{className:'weight-display'},
+            React.createElement('div',{style:{fontSize:'14px',color:'var(--green2)',fontWeight:700}},settings.userWeight+' кг'),
+            React.createElement('span',null,'— збережено')
           )
+        ),
+        // info
+        React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,'📱 Як зберегти на робочий стіл'),
+          React.createElement('p',{style:{lineHeight:'1.6'}},
+            'У Safari натисни кнопку «Поділитися» (квадрат зі стрілкою) → «На початковий екран». Апка буде працювати як повноцінний додаток з іконкою 💪'
+          )
+        ),
+        // stats
+        React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,'📊 Статистика'),
+          React.createElement('p',null,`Всього тренувань: ${totalDays}`),
+          React.createElement('p',null,`Всього підходів: ${totalSets}`),
+          React.createElement('p',null,`Загальний тоннаж: ${(totalTonnage/1000).toFixed(1)} тонн`)
+        ),
+        // danger zone
+        React.createElement('div',{className:'danger-zone'},
+          React.createElement('h3',null,'⚠️ Зона небезпеки'),
+          React.createElement('p',null,'Видалити ВСІ дані тренувань без можливості відновлення'),
+          React.createElement('button',{className:'danger-btn',onClick:()=>{
+            if(confirm('Точно видалити ВСЕ? Цю дію не можна скасувати!')){
+              setData({});setDraft(mkDay());flash('🗑 Все видалено');
+            }
+          }},'Видалити всі дані')
         )
       )
     );
   }
 
-  // ── MAIN RENDER ───────────────────────────────────────────────────
-  return React.createElement('div', { className:'page' },
-    // header
-    React.createElement('div', { className:'app-header' },
-      React.createElement('div', { className:'app-logo' },
-        React.createElement('div', { className:'logo-icon' }, '💪'),
-        React.createElement('div', { className:'logo-text' },
-          React.createElement('h1', null, 'Gym Notebook'),
-          React.createElement('p', null, 'Твій щоденник тренувань')
+  // ─── MAIN RENDER ───────────────────────────────────────────────
+  return React.createElement('div',{id:'app-root'},
+    React.createElement('div',{className:'page'},
+      React.createElement('div',{className:'app-header'},
+        React.createElement('div',{className:'app-logo'},
+          React.createElement('div',{className:'logo-icon'},'💪'),
+          React.createElement('div',{className:'logo-text'},
+            React.createElement('h1',null,'Gym Notebook'),
+            React.createElement('p',null,'Твій щоденник тренувань')
+          )
         )
       ),
-      React.createElement('div', { className:'header-actions' },
-        React.createElement('button', { className:'settings-btn', onClick:()=>setShowSettings(true) }, '⚙️')
+      tab==='calendar'&&renderCalendar(),
+      tab==='history'&&renderHistory(),
+      tab==='settings'&&renderSettings()
+    ),
+    // bottom tabs
+    React.createElement('div',{className:'tab-bar'},
+      React.createElement('div',{className:'tab-bar-inner'},
+        React.createElement('button',{className:'tab-btn'+(tab==='calendar'?' active':''),onClick:()=>setTab('calendar')},
+          React.createElement('span',{className:'tab-icon'},'📅'),React.createElement('span',null,'Календар')
+        ),
+        React.createElement('button',{className:'tab-btn'+(tab==='history'?' active':''),onClick:()=>setTab('history')},
+          React.createElement('span',{className:'tab-icon'},'📊'),React.createElement('span',null,'Історія')
+        ),
+        React.createElement('button',{className:'tab-btn'+(tab==='settings'?' active':''),onClick:()=>setTab('settings')},
+          React.createElement('span',{className:'tab-icon'},'⚙️'),React.createElement('span',null,'Налаштування')
+        )
       )
     ),
-
-    // stats
-    React.createElement('div', { className:'stats-bar' },
-      React.createElement('div', { className:'stat-pill' },
-        React.createElement('div', { className:'stat-num' }, totalDays),
-        React.createElement('div', { className:'stat-lbl' }, 'Днів')
-      ),
-      React.createElement('div', { className:'stat-pill' },
-        React.createElement('div', { className:'stat-num' }, totalSets),
-        React.createElement('div', { className:'stat-lbl' }, 'Підходів')
-      ),
-      React.createElement('div', { className:'stat-pill' },
-        React.createElement('div', { className:'stat-num' }, thisWeek),
-        React.createElement('div', { className:'stat-lbl' }, 'Тиждень')
-      )
-    ),
-
-    // calendar
-    React.createElement('div', { className:'calendar-wrap' },
-      React.createElement('div', { className:'cal-nav' },
-        React.createElement('button', { className:'cal-arrow', onClick:prevMonth }, '‹'),
-        React.createElement('span', { className:'cal-month' }, `${MONTHS[month]} ${year}`),
-        React.createElement('button', { className:'cal-arrow', onClick:nextMonth }, '›')
-      ),
-      React.createElement('div', { className:'cal-weekdays' },
-        WEEKDAYS.map(w => React.createElement('div', { key:w, className:'cal-wd' }, w))
-      ),
-      React.createElement('div', { className:'cal-grid' },
-        grid.map((d, idx) => {
-          if (!d) return React.createElement('div', { key:'e'+idx, className:'cal-day empty' });
-          const key = toKey(new Date(year, month, d));
-          const isToday   = key === todayStr;
-          const hasDat    = !!data[key];
-          const isSel     = key === selected;
-          let cls = 'cal-day';
-          if (isToday)  cls += ' today';
-          if (hasDat)   cls += ' has-workout';
-          if (isSel)    cls += ' selected';
-          return React.createElement('div', { key:d, className:cls, onClick:()=>selectDay(d) },
-            d,
-            hasDat && React.createElement('div', { className:'day-dot' })
-          );
-        })
-      )
-    ),
-
-    // selected day editor
-    selected && renderDraft(),
-
-    // history
-    renderHistory(),
-
-    // toast
-    toast && React.createElement('div', { key:toast, className:'toast' }, toast),
-
-    // settings modal
-    showSettings && React.createElement('div', { className:'modal-overlay', onClick:(e)=>{if(e.target===e.currentTarget)setShowSettings(false)} },
-      React.createElement('div', { className:'modal-box' },
-        React.createElement('h3', null, '⚙️ Налаштування'),
-        React.createElement('label', { style:{fontSize:'12px', color:'var(--text2)', marginBottom:'8px', display:'block', fontWeight:600} }, 'Твоя вага (кг)'),
-        React.createElement('input', {
-          className:'modal-input', type:'number', inputMode:'decimal', placeholder:'Напр. 75',
-          value: settings.userWeight,
-          onChange: e => setSettings({ ...settings, userWeight: e.target.value })
-        }),
-        React.createElement('button', { className:'modal-close-btn', onClick:()=>setShowSettings(false) }, 'Зберегти')
-      )
-    )
+    toast&&React.createElement('div',{key:toast,className:'toast'},toast)
   );
 }
 
