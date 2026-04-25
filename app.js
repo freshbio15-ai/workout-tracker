@@ -173,7 +173,21 @@ function App(){
   function selectDay(d){if(!d)return;setSelected(toKey(new Date(year,month,d)))}
 
   // draft ops
-  function setMuscle(m){setDraft(p=>({...p,muscle:m}))}
+  function setMuscle(m){
+    setDraft(p=>{
+      const isEmpty = p.exercises.length === 1 && p.exercises[0].name.trim() === '' && p.exercises[0].sets.every(s=>!s.reps&&!s.weight&&!s.bw);
+      if(isEmpty){
+        const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===m);
+        if(lastW){
+          const newExs = lastW[1].exercises.map(ex=>({
+            name: ex.name, muscle: ex.muscle||'', sets: ex.sets.map(s=>({reps:'', weight:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
+          }));
+          return {...p, muscle:m, exercises:newExs};
+        }
+      }
+      return {...p, muscle:m};
+    });
+  }
   function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
   function setExMuscle(ei,m){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,muscle:e.muscle===m?'':m}:e)}))}
   function setField(ei,si,f,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>j!==si?s:{...s,[f]:v})})}))}
@@ -328,8 +342,8 @@ function App(){
             ),
             ex.sets.map((s,si)=>React.createElement('div',{key:si,className:'set-row'},
               React.createElement('div',{className:'set-badge'},si+1),
-              React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
-              React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
+              React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:s.prevReps||'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
+              React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:s.prevWeight||'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
               React.createElement('button',{className:'bw-btn'+(s.bw?' active':''),onClick:()=>toggleBW(ei,si)},'СВ'),
               ex.sets.length>1?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},'×'):React.createElement('div')
             )),
