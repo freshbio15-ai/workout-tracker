@@ -34,6 +34,7 @@ function App(){
   const [selected,setSelected]=useState(todayKey());
   const [draft,setDraft]=useState(null);
   const [toast,setToast]=useState(null);
+  const [showStats,setShowStats]=useState(false);
   const tRef=useRef(null);
 
   useEffect(()=>{persist(STORAGE,data)},[data]);
@@ -87,21 +88,51 @@ function App(){
   const allKeys=Object.keys(data);
   const totalDays=allKeys.length;
   const totalSets=Object.values(data).reduce((a,d)=>a+d.exercises.reduce((b,e)=>b+e.sets.length,0),0);
+  const totalReps=Object.values(data).reduce((a,d)=>a+d.exercises.reduce((b,e)=>b+e.sets.reduce((c,s)=>c+(Number(s.reps)||0),0),0),0);
   const weekStart=(()=>{const n=new Date();const s=new Date(n);s.setDate(n.getDate()-n.getDay());s.setHours(0,0,0,0);return s})();
   const thisWeek=allKeys.filter(k=>new Date(k+'T00:00:00')>=weekStart).length;
   const totalTonnage=Object.values(data).reduce((a,w)=>a+calcTonnage(w),0);
   const history=Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0]));
 
+  // muscle breakdown
+  const muscleStats=(()=>{
+    const map={};
+    Object.values(data).forEach(w=>{
+      if(!w.muscle)return;
+      if(!map[w.muscle])map[w.muscle]={days:0,sets:0,reps:0,tonnage:0};
+      map[w.muscle].days++;
+      w.exercises.forEach(e=>{map[w.muscle].sets+=e.sets.length;e.sets.forEach(s=>{map[w.muscle].reps+=Number(s.reps)||0;map[w.muscle].tonnage+=(Number(s.reps)||0)*(Number(s.weight)||0)})});
+    });
+    return Object.entries(map).sort((a,b)=>b[1].sets-a[1].sets);
+  })();
+  const maxMuscleSets=muscleStats.length?muscleStats[0][1].sets:1;
+
+  // streak
+  const streak=(()=>{
+    let count=0;const today=new Date();today.setHours(0,0,0,0);
+    for(let i=0;i<365;i++){
+      const d=new Date(today);d.setDate(today.getDate()-i);
+      if(data[toKey(d)])count++;else if(i>0)break;
+    }
+    return count;
+  })();
+
+  // avg sets per workout
+  const avgSets=totalDays?Math.round(totalSets/totalDays):0;
+  // fav muscle
+  const favMuscle=muscleStats.length?muscleStats[0][0]:'—';
+
   // ─── CALENDAR TAB ───────────────────────────────────────────────
   function renderCalendar(){
     const hasData=data[selected];
     return React.createElement(React.Fragment,null,
-      // stats
-      React.createElement('div',{className:'stats-bar'},
+      // stats (clickable)
+      React.createElement('div',{className:'stats-bar',onClick:()=>setShowStats(true)},
         React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},totalDays),React.createElement('div',{className:'stat-lbl'},'Днів')),
         React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},totalSets),React.createElement('div',{className:'stat-lbl'},'Підходів')),
         React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},thisWeek),React.createElement('div',{className:'stat-lbl'},'Тиждень'))
       ),
+      React.createElement('div',{className:'stats-hint'},'натисни для детальної статистики ↑'),
       // calendar
       React.createElement('div',{className:'calendar-wrap'},
         React.createElement('div',{className:'cal-nav'},
@@ -273,7 +304,61 @@ function App(){
         )
       )
     ),
-    toast&&React.createElement('div',{key:toast,className:'toast'},toast)
+    toast&&React.createElement('div',{key:toast,className:'toast'},toast),
+
+    // stats popup
+    showStats&&React.createElement('div',{className:'stats-overlay',onClick:e=>{if(e.target===e.currentTarget)setShowStats(false)}},
+      React.createElement('div',{className:'stats-popup'},
+        React.createElement('div',{className:'stats-popup-header'},
+          React.createElement('h2',null,'📈 Детальна статистика'),
+          React.createElement('button',{className:'stats-close',onClick:()=>setShowStats(false)},'×')
+        ),
+
+        // streak
+        React.createElement('div',{className:'streak-card'},
+          React.createElement('div',{className:'streak-val'},'🔥 '+streak),
+          React.createElement('div',{className:'streak-lbl'},streak===1?'день поспіль':streak<5?'дні поспіль':'днів поспіль')
+        ),
+
+        // big stats grid
+        React.createElement('div',{className:'big-stats'},
+          React.createElement('div',{className:'big-stat'},
+            React.createElement('div',{className:'big-stat-icon'},'🏋️'),
+            React.createElement('div',{className:'big-stat-val'},(totalTonnage/1000).toFixed(1)+' т'),
+            React.createElement('div',{className:'big-stat-lbl'},'Тоннаж')
+          ),
+          React.createElement('div',{className:'big-stat'},
+            React.createElement('div',{className:'big-stat-icon'},'🔄'),
+            React.createElement('div',{className:'big-stat-val'},totalReps),
+            React.createElement('div',{className:'big-stat-lbl'},'Повторень')
+          ),
+          React.createElement('div',{className:'big-stat'},
+            React.createElement('div',{className:'big-stat-icon'},'📊'),
+            React.createElement('div',{className:'big-stat-val'},avgSets),
+            React.createElement('div',{className:'big-stat-lbl'},'Підх./трен.')
+          ),
+          React.createElement('div',{className:'big-stat'},
+            React.createElement('div',{className:'big-stat-icon'},'⭐'),
+            React.createElement('div',{className:'big-stat-val'},favMuscle),
+            React.createElement('div',{className:'big-stat-lbl'},'Улюблена')
+          )
+        ),
+
+        // muscle breakdown
+        muscleStats.length>0&&React.createElement('div',{className:'muscle-breakdown'},
+          React.createElement('div',{className:'mb-title'},'Підходи по групах м\'язів'),
+          muscleStats.map(([name,stat],i)=>
+            React.createElement('div',{key:name,className:'mb-row'},
+              React.createElement('div',{className:'mb-label'},name),
+              React.createElement('div',{className:'mb-bar-wrap'},
+                React.createElement('div',{className:'mb-bar c'+i%8,style:{width:Math.round(stat.sets/maxMuscleSets*100)+'%'}})
+              ),
+              React.createElement('div',{className:'mb-val'},stat.sets+' підх.')
+            )
+          )
+        )
+      )
+    )
   );
 }
 
