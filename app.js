@@ -1,6 +1,6 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
-const MUSCLES = ['Спина','Груди','Ноги','Плечі','Біцепс','Трицепс','Прес','Кардіо'];
+// muscles are user-defined, stored in settings
 const STORAGE = 'gymbook-data';
 const SETTINGS_KEY = 'gymbook-settings';
 const WEEKDAYS = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -86,7 +86,8 @@ function calcTonnage(workout){
 // ══════════════════════════════════════════════════════════════════
 function App(){
   const [data,setData]=useState(()=>load(STORAGE,{}));
-  const [settings,setSettings]=useState(()=>load(SETTINGS_KEY,{userWeight:''}));
+  const [settings,setSettings]=useState(()=>load(SETTINGS_KEY,{userWeight:'',muscles:[]}));
+  const [newMuscle,setNewMuscle]=useState('');
   const [tab,setTab]=useState('calendar');
   const [calDate,setCalDate]=useState(new Date());
   const [selected,setSelected]=useState(todayKey());
@@ -265,7 +266,17 @@ function App(){
           )
         ),
         React.createElement('div',{className:'day-panel-body'},
-          React.createElement('div',{className:'muscle-row'},MUSCLES.map(m=>React.createElement('button',{key:m,className:'muscle-tag'+(draft.muscle===m?' active':''),onClick:()=>setMuscle(m)},m))),
+          React.createElement('div',{className:'muscle-row'},
+            (settings.muscles||[]).map(m=>React.createElement('button',{key:m,className:'muscle-tag'+(draft.muscle===m?' active':''),onClick:()=>setMuscle(m)},
+              m,
+              React.createElement('span',{className:'chip-del',onClick:e=>{e.stopPropagation();setSettings(s=>({...s,muscles:s.muscles.filter(x=>x!==m)}));if(draft.muscle===m)setMuscle('')}},'×')
+            )),
+            React.createElement('div',{className:'add-muscle-wrap'},
+              React.createElement('input',{className:'add-muscle-input',placeholder:'Нова група…',value:newMuscle,onChange:e=>setNewMuscle(e.target.value),
+                onKeyDown:e=>{if(e.key==='Enter'&&newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}
+              }),
+              React.createElement('button',{className:'add-muscle-btn',onClick:()=>{if(newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}},'+'))
+          ),
           draft.exercises.map((ex,ei)=>React.createElement('div',{key:ei,className:'exercise-block'},
             React.createElement('div',{className:'ex-name-row'},
               React.createElement('input',{className:'ex-name-input',placeholder:'Назва вправи…',value:ex.name,onChange:e=>setExName(ei,e.target.value)}),
