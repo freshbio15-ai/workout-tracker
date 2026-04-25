@@ -116,7 +116,8 @@ function App(){
   const [timerEnd,setTimerEnd]=useState(null);
   const [timeLeft,setTimeLeft]=useState(0);
   const [showTimerPopup,setShowTimerPopup]=useState(false);
-  const [timerCustom,setTimerCustom]=useState('');
+  const [timerCustomMin,setTimerCustomMin]=useState(1);
+  const [timerCustomSec,setTimerCustomSec]=useState(0);
   const tRef=useRef(null);
   const saveTimer=useRef(null);
   const isFirstLoad=useRef(true);
@@ -766,10 +767,18 @@ function App(){
             React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(240)},'4 хв'),
             React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(300)},'5 хв'),
             React.createElement('div',{className:'timer-custom'},
-              React.createElement('input',{type:'number',inputMode:'numeric',placeholder:'Хвилини…',value:timerCustom,onChange:e=>setTimerCustom(e.target.value)}),
+              React.createElement('div',{className:'timer-wheels'},
+                React.createElement('select',{className:'timer-wheel',value:timerCustomMin,onChange:e=>setTimerCustomMin(Number(e.target.value))},
+                  Array.from({length:11}).map((_,i)=>React.createElement('option',{key:i,value:i},i+' хв'))
+                ),
+                React.createElement('select',{className:'timer-wheel',value:timerCustomSec,onChange:e=>setTimerCustomSec(Number(e.target.value))},
+                  [0,15,30,45].map(s=>React.createElement('option',{key:s,value:s},s+' сек'))
+                )
+              ),
               React.createElement('button',{onClick:()=>{
-                const m = parseFloat(timerCustom);
-                if(!isNaN(m) && m > 0) startTimer(m * 60);
+                const m = parseInt(timerCustomMin)||0;
+                const s = parseInt(timerCustomSec)||0;
+                if(m > 0 || s > 0) startTimer(m * 60 + s);
               }},'Старт')
             )
           )

@@ -196,7 +196,8 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .timer-preset{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;font-size:16px;font-weight:700;color:var(--text1);cursor:pointer;transition:all .1s}
 .timer-preset:active{transform:scale(.95);background:var(--bg4)}
 .timer-custom{grid-column:span 2;display:flex;gap:8px;margin-top:4px}
-.timer-custom input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:16px;color:var(--text1);font-weight:600;text-align:center}
+.timer-wheels{flex:1;display:flex;gap:4px}
+.timer-wheel{flex:1;appearance:none;-webkit-appearance:none;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:15px;color:var(--text1);font-weight:600;text-align:center;cursor:pointer}
 .timer-custom button{background:linear-gradient(135deg,var(--accent),#6d28d9);color:#fff;border:none;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}
 
 .add-ex-btn{width:100%;padding:10px;background:rgba(124,58,237,.05);border:1px dashed rgba(124,58,237,.18);border-radius:var(--radius-sm);color:var(--accent2);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:12px}
