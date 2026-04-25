@@ -94,6 +94,7 @@ function App(){
   const [draft,setDraft]=useState(null);
   const [toast,setToast]=useState(null);
   const [showStats,setShowStats]=useState(false);
+  const [historyDetail,setHistoryDetail]=useState(null); // key of workout to show detail
   const [uid,setUid]=useState(null);
   const [cloudStatus,setCloudStatus]=useState('connecting'); // connecting | synced | saving | offline
   const tRef=useRef(null);
@@ -303,10 +304,90 @@ function App(){
   }
 
   // ─── HISTORY TAB ────────────────────────────────────────────────
+  function calcExTonnage(ex){
+    return ex.sets.reduce((a,s)=>(Number(s.reps)||0)*(Number(s.weight)||0)+a,0);
+  }
+
+  function renderHistoryDetail(){
+    const k=historyDetail;
+    const w=data[k];
+    if(!w)return null;
+    const ton=calcTonnage(w);
+    const exTons=w.exercises.map(ex=>({name:ex.name,ton:calcExTonnage(ex),sets:ex.sets}));
+    const maxExTon=Math.max(...exTons.map(e=>e.ton),1);
+
+    return React.createElement(React.Fragment,null,
+      // back button
+      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'16px'}},
+        React.createElement('button',{className:'cal-arrow',onClick:()=>setHistoryDetail(null)},'‹'),
+        React.createElement('div',null,
+          React.createElement('div',{style:{fontSize:'16px',fontWeight:800}},k===tKey?'Сьогодні':fmtFull(k)),
+          React.createElement('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'2px'}},w.muscle?'🎯 '+w.muscle:k)
+        )
+      ),
+      // total tonnage for this day
+      React.createElement('div',{className:'tonnage-card'},
+        React.createElement('div',{className:'tonnage-value'},ton>1000?(ton/1000).toFixed(1)+' т':ton+' кг'),
+        React.createElement('div',{className:'tonnage-label'},'Тоннаж за день'),
+        React.createElement('div',{className:'tonnage-row'},
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},w.exercises.length),React.createElement('div',{className:'tonnage-item-lbl'},'Вправ')),
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},w.exercises.reduce((a,e)=>a+e.sets.length,0)),React.createElement('div',{className:'tonnage-item-lbl'},'Підходів')),
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},w.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0),0),0)),React.createElement('div',{className:'tonnage-item-lbl'},'Повторень'))
+        )
+      ),
+      // per-exercise tonnage chart
+      React.createElement('div',{className:'section-label'},'Тоннаж по вправах'),
+      React.createElement('div',{className:'muscle-breakdown',style:{marginBottom:'14px'}},
+        exTons.map((ex,i)=>
+          React.createElement('div',{key:i,className:'mb-row'},
+            React.createElement('div',{className:'mb-label',style:{width:'90px',fontSize:'11px'}},ex.name),
+            React.createElement('div',{className:'mb-bar-wrap'},
+              React.createElement('div',{className:'mb-bar c'+i%8,style:{width:Math.max(Math.round(ex.ton/maxExTon*100),3)+'%'}})
+            ),
+            React.createElement('div',{className:'mb-val',style:{width:'50px'}},ex.ton>1000?(ex.ton/1000).toFixed(1)+'т':ex.ton+'кг')
+          )
+        )
+      ),
+      // detailed exercises
+      React.createElement('div',{className:'section-label'},'Деталі вправ'),
+      w.exercises.map((ex,i)=>{
+        const exTon=calcExTonnage(ex);
+        return React.createElement('div',{key:i,className:'detail-ex-card'},
+          React.createElement('div',{className:'detail-ex-header'},
+            React.createElement('div',{className:'detail-ex-name'},ex.name),
+            React.createElement('div',{className:'detail-ex-ton'},exTon>1000?(exTon/1000).toFixed(1)+' т':exTon+' кг')
+          ),
+          React.createElement('table',{className:'detail-table'},
+            React.createElement('thead',null,
+              React.createElement('tr',null,
+                React.createElement('th',null,'Сет'),
+                React.createElement('th',null,'Повт.'),
+                React.createElement('th',null,'Вага'),
+                React.createElement('th',null,'Об\'єм')
+              )
+            ),
+            React.createElement('tbody',null,
+              ex.sets.map((s,j)=>React.createElement('tr',{key:j},
+                React.createElement('td',null,React.createElement('span',{className:'set-badge'},j+1)),
+                React.createElement('td',null,s.reps),
+                React.createElement('td',null,s.bw?'СВ ('+s.weight+'кг)':s.weight+' кг'),
+                React.createElement('td',{className:'detail-vol'},(Number(s.reps)||0)*(Number(s.weight)||0)+' кг')
+              ))
+            )
+          )
+        );
+      }),
+      // edit button
+      React.createElement('button',{className:'save-btn',style:{marginTop:'16px',background:'var(--bg4)',boxShadow:'none',border:'1px solid var(--border)'},onClick:()=>{
+        const[y,m]=k.split('-').map(Number);setCalDate(new Date(y,m-1,1));setSelected(k);setTab('calendar');setHistoryDetail(null);
+      }},'✏️ Редагувати тренування')
+    );
+  }
+
   function renderHistory(){
+    if(historyDetail) return renderHistoryDetail();
     return React.createElement(React.Fragment,null,
       React.createElement('div',{className:'history-header'},React.createElement('h2',null,'📊 Історія')),
-      // tonnage card
       React.createElement('div',{className:'tonnage-card'},
         React.createElement('div',{className:'tonnage-value'},(totalTonnage/1000).toFixed(1)+' т'),
         React.createElement('div',{className:'tonnage-label'},'Загальний тоннаж'),
@@ -322,9 +403,7 @@ function App(){
           React.createElement('div',{className:'section-label'},'Всі тренування ('+history.length+')'),
           React.createElement('div',{className:'history-list'},history.map(([k,w])=>{
             const ton=calcTonnage(w);
-            return React.createElement('div',{key:k,className:'history-card',onClick:()=>{
-              const[y,m]=k.split('-').map(Number);setCalDate(new Date(y,m-1,1));setSelected(k);setTab('calendar');
-            }},
+            return React.createElement('div',{key:k,className:'history-card',onClick:()=>setHistoryDetail(k)},
               React.createElement('div',{className:'hc-top'},
                 React.createElement('div',null,
                   React.createElement('div',{className:'hc-title'},k===tKey?'Сьогодні':fmtFull(k)),
@@ -337,9 +416,13 @@ function App(){
                 React.createElement('span',{className:'hc-stat'},React.createElement('strong',null,w.exercises.reduce((a,e)=>a+e.sets.length,0)),' підх.'),
                 React.createElement('span',{className:'hc-stat'},React.createElement('strong',null,ton>1000?(ton/1000).toFixed(1)+'т':ton+'кг'),' тоннаж')
               ),
-              React.createElement('div',{className:'hc-exercises'},w.exercises.map((ex,i)=>React.createElement('div',{key:i,className:'hc-ex'},
-                React.createElement('strong',null,ex.name),` — ${ex.sets.length} підх.`+(ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
-              )))
+              React.createElement('div',{className:'hc-exercises'},w.exercises.map((ex,i)=>{
+                const et=calcExTonnage(ex);
+                return React.createElement('div',{key:i,className:'hc-ex'},
+                  React.createElement('strong',null,ex.name),
+                  ` — ${ex.sets.length} підх. · ${et>1000?(et/1000).toFixed(1)+'т':et+'кг'}`+(ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
+                );
+              }))
             );
           }))
         )
