@@ -656,7 +656,6 @@ function App(){
     ),
     toast&&React.createElement('div',{key:toast,className:'toast'},toast),
       renderCustomPicker()
-    )
   );
 }
 
