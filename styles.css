@@ -241,6 +241,13 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .mt-tonnage{font-size:14px;font-weight:800;background:linear-gradient(135deg,var(--accent2),var(--green2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-top:1px}
 .mt-details{font-size:10px;color:var(--text3);margin-top:2px}
 
+/* Insight Box (Rest Time Advisor) */
+.insight-box{margin-top:12px;padding:12px;border-radius:12px;border:1px solid;display:flex;gap:10px;align-items:flex-start;animation:slideUp .3s ease-out}
+.insight-icon{font-size:20px;line-height:1}
+.insight-content{flex:1}
+.insight-title{font-size:13px;font-weight:800;margin:0 0 4px;letter-spacing:0.3px}
+.insight-text{font-size:12px;color:var(--text1);margin:0;line-height:1.4}
+.insight-text strong{font-weight:700}
 .section-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin:0 0 10px}
 .history-list{display:flex;flex-direction:column;gap:8px}
 .history-card{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px;cursor:pointer;position:relative;overflow:hidden;transition:all .2s}

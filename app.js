@@ -407,6 +407,39 @@ function App(){
       React.createElement('div',{className:'section-label'},'Деталі вправ'),
       w.exercises.map((ex,i)=>{
         const exTon=calcExTonnage(ex);
+        
+        function analyzeDrops(sets) {
+          if (sets.length < 2) return null;
+          const firstWeight = sets[0].bw ? 'bw' : sets[0].weight;
+          const sameWeight = sets.every(s => (s.bw ? 'bw' : s.weight) === firstWeight);
+          if (!sameWeight) return null;
+          
+          const reps = sets.map(s => Number(s.reps) || 0);
+          const maxReps = Math.max(...reps);
+          if (maxReps < 8) return null;
+          
+          const minReps = Math.min(...reps);
+          const dropPct = (maxReps - minReps) / maxReps;
+
+          if (dropPct >= 0.4) {
+            return { 
+              color: 'var(--red)', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)',
+              pct: Math.round(dropPct*100), max: maxReps, min: minReps,
+              msg: `М'язи не встигають відновлювати АТФ.`,
+              advice: 'Збільш час відпочинку до 3-5 хвилин для підтримки високої інтенсивності.' 
+            };
+          } else if (dropPct >= 0.2) {
+            return { 
+              color: 'var(--orange)', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)',
+              pct: Math.round(dropPct*100), max: maxReps, min: minReps,
+              msg: `Нормальна втома для гіпертрофії.`,
+              advice: 'Для збереження об\'єму спробуй відпочивати 2-3 хвилини.' 
+            };
+          }
+          return null;
+        }
+        const insight = analyzeDrops(ex.sets);
+
         return React.createElement('div',{key:i,className:'detail-ex-card'},
           React.createElement('div',{className:'detail-ex-header'},
             React.createElement('div',{className:'detail-ex-name',style:{display:'flex',alignItems:'center',gap:'6px'}},(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?React.createElement('img',{src:mg.icon,className:'inline-muscle-icon'}):null})(),ex.name),
@@ -428,6 +461,19 @@ function App(){
                 React.createElement('td',null,s.reps),
                 React.createElement('td',{className:'detail-vol'},(Number(s.reps)||0)*(Number(s.weight)||0)+' кг')
               ))
+            )
+          ),
+          insight && React.createElement('div',{className:'insight-box',style:{background:insight.bg,borderColor:insight.border}},
+            React.createElement('div',{className:'insight-icon'},'💡'),
+            React.createElement('div',{className:'insight-content'},
+              React.createElement('h4',{className:'insight-title',style:{color:insight.color}},'Аналіз витривалості'),
+              React.createElement('p',{className:'insight-text'},
+                `Повторення впали на `,
+                React.createElement('strong',null,`${insight.pct}%`),
+                ` (з ${insight.max} до ${insight.min}). ${insight.msg}`,
+                React.createElement('br'),React.createElement('br'),
+                '⏱ ', React.createElement('strong',null,'Порада: '), insight.advice
+              )
             )
           )
         );
