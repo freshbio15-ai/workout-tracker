@@ -181,17 +181,25 @@ function App(){
   // draft ops
   function setMuscle(m){
     setDraft(p=>{
-      const isEmpty = p.exercises.length === 1 && p.exercises[0].name.trim() === '' && p.exercises[0].sets.every(s=>!s.reps&&!s.weight&&!s.bw);
-      if(isEmpty){
-        const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===m);
-        if(lastW){
-          const newExs = lastW[1].exercises.map(ex=>({
-            name: ex.name, muscle: ex.muscle||'', sets: ex.sets.map(s=>({reps:'', weight:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
-          }));
-          return {...p, muscle:m, exercises:newExs};
+      const newM = p.muscle === m ? '' : m;
+      const isUntouched = p.exercises.every(ex => ex.sets.every(s => s.reps === '' && s.weight === ''));
+      
+      if(isUntouched){
+        if(newM === '') {
+          return {...p, muscle: newM, exercises: [mkEx()]};
+        } else {
+          const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
+          if(lastW){
+            const newExs = lastW[1].exercises.map(ex=>({
+              name: ex.name, muscle: ex.muscle||'', sets: ex.sets.map(s=>({reps:'', weight:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
+            }));
+            return {...p, muscle: newM, exercises: newExs};
+          } else {
+            return {...p, muscle: newM, exercises: [mkEx()]};
+          }
         }
       }
-      return {...p, muscle:m};
+      return {...p, muscle: newM};
     });
   }
   function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
