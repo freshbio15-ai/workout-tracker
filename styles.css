@@ -134,7 +134,9 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .emoji-muscle-btn{width:32px;height:32px;border-radius:9px;background:var(--bg3);border:1.5px solid var(--border);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;padding:0}
 .emoji-muscle-btn:active{transform:scale(.85)}
 .emoji-muscle-btn.active{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(124,58,237,.1));border-color:var(--accent);box-shadow:0 0 8px rgba(124,58,237,.3)}
-
+.muscle-btn-icon{width:22px;height:22px;object-fit:contain}
+.inline-muscle-icon{width:16px;height:16px;object-fit:contain;vertical-align:middle}
+.mt-icon{width:28px;height:28px;object-fit:contain}
 /* ===== EXERCISE BLOCK ===== */
 .exercise-block{background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px}
 .ex-name-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}

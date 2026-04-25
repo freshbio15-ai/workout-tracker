@@ -1,15 +1,15 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
-// muscles are emoji-based, assigned per exercise
+// muscles are image-based, assigned per exercise
 const MUSCLE_EMOJIS = [
-  {id:'chest',emoji:'🫁',label:'Груди'},
-  {id:'back',emoji:'🔙',label:'Спина'},
-  {id:'legs',emoji:'🦵',label:'Ноги'},
-  {id:'shoulders',emoji:'🎯',label:'Плечі'},
-  {id:'biceps',emoji:'💪',label:'Біцепс'},
-  {id:'triceps',emoji:'💎',label:'Трицепс'},
-  {id:'abs',emoji:'🧱',label:'Прес'},
-  {id:'cardio',emoji:'🫀',label:'Кардіо'},
+  {id:'chest',icon:'assets/icon_chest.png',label:'Груди'},
+  {id:'back',icon:'assets/icon_back.png',label:'Спина'},
+  {id:'legs',icon:'assets/icon_legs.png',label:'Ноги'},
+  {id:'shoulders',icon:'assets/icon_shoulders.png',label:'Плечі'},
+  {id:'biceps',icon:'assets/icon_biceps.png',label:'Біцепс'},
+  {id:'triceps',icon:'assets/icon_triceps.png',label:'Трицепс'},
+  {id:'abs',icon:'assets/icon_abs.png',label:'Прес'},
+  {id:'cardio',icon:'assets/icon_cardio.png',label:'Кардіо'},
 ];
 const STORAGE = 'gymbook-data';
 const SETTINGS_KEY = 'gymbook-settings';
@@ -217,15 +217,16 @@ function App(){
     const map={};
     Object.values(data).forEach(w=>{
       w.exercises.forEach(ex=>{
-        const m = ex.muscle || w.muscle || '';
+        const m = ex.muscle || '';
         if(!m) return;
-        const label = MUSCLE_EMOJIS.find(e=>e.id===m);
-        const name = label ? label.emoji+' '+label.label : m;
-        if(!map[name]) map[name]={days:0,sets:0,reps:0,tonnage:0};
-        map[name].sets += ex.sets.length;
+        const mg = MUSCLE_EMOJIS.find(e=>e.id===m);
+        if(!mg) return; // skip old text-based data
+        const key = mg.id;
+        if(!map[key]) map[key]={icon:mg.icon,label:mg.label,days:0,sets:0,reps:0,tonnage:0};
+        map[key].sets += ex.sets.length;
         ex.sets.forEach(s=>{
-          map[name].reps += Number(s.reps)||0;
-          map[name].tonnage += (Number(s.reps)||0)*(Number(s.weight)||0);
+          map[key].reps += Number(s.reps)||0;
+          map[key].tonnage += (Number(s.reps)||0)*(Number(s.weight)||0);
         });
       });
     });
@@ -233,11 +234,11 @@ function App(){
     Object.values(data).forEach(w=>{
       const seen = new Set();
       w.exercises.forEach(ex=>{
-        const m = ex.muscle || w.muscle || '';
+        const m = ex.muscle || '';
         if(!m) return;
-        const label = MUSCLE_EMOJIS.find(e=>e.id===m);
-        const name = label ? label.emoji+' '+label.label : m;
-        if(!seen.has(name)){ seen.add(name); if(map[name]) map[name].days++; }
+        const mg = MUSCLE_EMOJIS.find(e=>e.id===m);
+        if(!mg) return;
+        if(!seen.has(mg.id)){ seen.add(mg.id); if(map[mg.id]) map[mg.id].days++; }
       });
     });
     return Object.entries(map).sort((a,b)=>b[1].sets-a[1].sets);
@@ -257,7 +258,7 @@ function App(){
   // avg sets per workout
   const avgSets=totalDays?Math.round(totalSets/totalDays):0;
   // fav muscle
-  const favMuscle=muscleStats.length?muscleStats[0][0]:'—';
+  const favMuscle=muscleStats.length?React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}},React.createElement('img',{src:muscleStats[0][1].icon,className:'inline-muscle-icon'}),muscleStats[0][1].label):'—';
 
   // ─── CALENDAR TAB ───────────────────────────────────────────────
   function renderCalendar(){
@@ -309,7 +310,7 @@ function App(){
                 className:'emoji-muscle-btn'+(ex.muscle===mg.id?' active':''),
                 onClick:()=>setExMuscle(ei,mg.id),
                 title:mg.label
-              },mg.emoji))
+              },React.createElement('img',{src:mg.icon,className:'muscle-btn-icon',alt:mg.label})))
             ),
             React.createElement('div',{className:'sets-header'},
               React.createElement('span',null,'Сет'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'Вага'),React.createElement('span',null,'СВ'),React.createElement('span',null,'')
@@ -382,7 +383,7 @@ function App(){
         const exTon=calcExTonnage(ex);
         return React.createElement('div',{key:i,className:'detail-ex-card'},
           React.createElement('div',{className:'detail-ex-header'},
-            React.createElement('div',{className:'detail-ex-name'},(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?mg.emoji+' ':''})(),ex.name),
+            React.createElement('div',{className:'detail-ex-name',style:{display:'flex',alignItems:'center',gap:'6px'}},(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?React.createElement('img',{src:mg.icon,className:'inline-muscle-icon'}):null})(),ex.name),
             React.createElement('div',{className:'detail-ex-ton'},exTon>1000?(exTon/1000).toFixed(1)+' т':exTon+' кг')
           ),
           React.createElement('table',{className:'detail-table'},
@@ -432,12 +433,12 @@ function App(){
           muscleStats.length>0&&React.createElement(React.Fragment,null,
             React.createElement('div',{className:'section-label'},'Тоннаж по групах м\'язів'),
             React.createElement('div',{className:'muscle-tonnage-grid'},
-              muscleStats.map(([name,stat],i)=>{
+              muscleStats.map(([key,stat],i)=>{
                 const t=stat.tonnage;
-                return React.createElement('div',{key:name,className:'mt-card'},
-                  React.createElement('div',{className:'mt-emoji'},name.split(' ')[0]),
+                return React.createElement('div',{key:key,className:'mt-card'},
+                  React.createElement('div',{className:'mt-emoji'},React.createElement('img',{src:stat.icon,className:'mt-icon',alt:stat.label})),
                   React.createElement('div',{className:'mt-info'},
-                    React.createElement('div',{className:'mt-name'},name.split(' ').slice(1).join(' ')),
+                    React.createElement('div',{className:'mt-name'},stat.label),
                     React.createElement('div',{className:'mt-tonnage'},t>1000?(t/1000).toFixed(1)+' т':t+' кг'),
                     React.createElement('div',{className:'mt-details'},stat.sets+' підх. · '+stat.reps+' повт. · '+stat.days+' дн.')
                   )
@@ -464,7 +465,7 @@ function App(){
               React.createElement('div',{className:'hc-exercises'},w.exercises.map((ex,i)=>{
                 const et=calcExTonnage(ex);
                 return React.createElement('div',{key:i,className:'hc-ex'},
-                  React.createElement('strong',null,(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?mg.emoji+' ':''})(),ex.name),
+                  React.createElement('strong',{style:{display:'inline-flex',alignItems:'center',gap:'4px'}},(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?React.createElement('img',{src:mg.icon,className:'inline-muscle-icon'}):null})(),ex.name),
                   ` — ${ex.sets.length} підх. · ${et>1000?(et/1000).toFixed(1)+'т':et+'кг'}`+(ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
                 );
               }))
@@ -597,9 +598,9 @@ function App(){
         // muscle breakdown
         muscleStats.length>0&&React.createElement('div',{className:'muscle-breakdown'},
           React.createElement('div',{className:'mb-title'},'Підходи по групах м\'язів'),
-          muscleStats.map(([name,stat],i)=>
-            React.createElement('div',{key:name,className:'mb-row'},
-              React.createElement('div',{className:'mb-label'},name),
+          muscleStats.map(([key,stat],i)=>
+            React.createElement('div',{key:key,className:'mb-row'},
+              React.createElement('div',{className:'mb-label',style:{display:'flex',alignItems:'center',gap:'4px'}},React.createElement('img',{src:stat.icon,className:'inline-muscle-icon'}),stat.label),
               React.createElement('div',{className:'mb-bar-wrap'},
                 React.createElement('div',{className:'mb-bar c'+i%8,style:{width:Math.round(stat.sets/maxMuscleSets*100)+'%'}})
               ),
