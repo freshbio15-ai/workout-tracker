@@ -105,6 +105,8 @@ function App(){
   const [toast,setToast]=useState(null);
   const [showStats,setShowStats]=useState(false);
   const [historyDetail,setHistoryDetail]=useState(null); // key of workout to show detail
+  const [filterStart,setFilterStart]=useState('');
+  const [filterEnd,setFilterEnd]=useState('');
   const [uid,setUid]=useState(null);
   const [cloudStatus,setCloudStatus]=useState('connecting'); // connecting | synced | saving | offline
   const tRef=useRef(null);
@@ -217,19 +219,26 @@ function App(){
   function deleteDay(){setData(p=>{const n={...p};delete n[selected];return n});setDraft(mkDay());flash('🗑 Видалено')}
 
   // stats
-  const allKeys=Object.keys(data);
+  const filteredDataEntries = Object.entries(data).filter(([k])=>{
+    if(filterStart && k < filterStart) return false;
+    if(filterEnd && k > filterEnd) return false;
+    return true;
+  });
+  const filteredData = Object.fromEntries(filteredDataEntries);
+
+  const allKeys=Object.keys(filteredData);
   const totalDays=allKeys.length;
-  const totalSets=Object.values(data).reduce((a,d)=>a+d.exercises.reduce((b,e)=>b+e.sets.length,0),0);
-  const totalReps=Object.values(data).reduce((a,d)=>a+d.exercises.reduce((b,e)=>b+e.sets.reduce((c,s)=>c+(Number(s.reps)||0),0),0),0);
+  const totalSets=Object.values(filteredData).reduce((a,d)=>a+d.exercises.reduce((b,e)=>b+e.sets.length,0),0);
+  const totalReps=Object.values(filteredData).reduce((a,d)=>a+d.exercises.reduce((b,e)=>b+e.sets.reduce((c,s)=>c+(Number(s.reps)||0),0),0),0);
   const weekStart=(()=>{const n=new Date();const s=new Date(n);s.setDate(n.getDate()-n.getDay());s.setHours(0,0,0,0);return s})();
   const thisWeek=allKeys.filter(k=>new Date(k+'T00:00:00')>=weekStart).length;
-  const totalTonnage=Object.values(data).reduce((a,w)=>a+calcTonnage(w),0);
-  const history=Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0]));
+  const totalTonnage=Object.values(filteredData).reduce((a,w)=>a+calcTonnage(w),0);
+  const history=filteredDataEntries.sort((a,b)=>b[0].localeCompare(a[0]));
 
   // muscle breakdown — from exercise-level muscles
   const muscleStats=(()=>{
     const map={};
-    Object.values(data).forEach(w=>{
+    Object.values(filteredData).forEach(w=>{
       w.exercises.forEach(ex=>{
         const m = ex.muscle || '';
         if(!m) return;
@@ -245,7 +254,7 @@ function App(){
       });
     });
     // count unique days per muscle
-    Object.values(data).forEach(w=>{
+    Object.values(filteredData).forEach(w=>{
       const seen = new Set();
       w.exercises.forEach(ex=>{
         const m = ex.muscle || '';
@@ -441,7 +450,14 @@ function App(){
   function renderHistory(){
     if(historyDetail) return renderHistoryDetail();
     return React.createElement(React.Fragment,null,
-      React.createElement('div',{className:'history-header'},React.createElement('h2',null,'📊 Історія')),
+      React.createElement('div',{className:'history-header'},
+        React.createElement('h2',null,'📊 Історія'),
+        React.createElement('div',{className:'history-filters'},
+          React.createElement('input',{type:'date',className:'h-filter-date',value:filterStart,onChange:e=>setFilterStart(e.target.value)}),
+          React.createElement('span',null,'-'),
+          React.createElement('input',{type:'date',className:'h-filter-date',value:filterEnd,onChange:e=>setFilterEnd(e.target.value)})
+        )
+      ),
       React.createElement('div',{className:'tonnage-card'},
         React.createElement('div',{className:'tonnage-value'},(totalTonnage/1000).toFixed(1)+' т'),
         React.createElement('div',{className:'tonnage-label'},'Загальний тоннаж'),
