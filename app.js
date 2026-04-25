@@ -466,7 +466,11 @@ function App(){
       React.createElement('div',{className:'history-header'},
         React.createElement('h2',null,'📊 Історія'),
         React.createElement('div',{className:'history-filters'},
-          React.createElement('div',{className:'h-filter-label'},filterText),
+          React.createElement('div',{className:'h-filter-label',onClick:()=>{
+            setPickerStart(filterStart); setPickerEnd(filterEnd);
+            setPickerYear(new Date().getFullYear()); setPickerMonth(new Date().getMonth());
+            setShowPicker(true);
+          }},filterText),
           React.createElement('button',{className:'h-filter-btn',onClick:()=>{
             setPickerStart(filterStart); setPickerEnd(filterEnd);
             setPickerYear(new Date().getFullYear()); setPickerMonth(new Date().getMonth());
