@@ -103,10 +103,9 @@ function App(){
   const [selected,setSelected]=useState(todayKey());
   const [draft,setDraft]=useState(null);
   const [toast,setToast]=useState(null);
-  const [showStats,setShowStats]=useState(false);
   const [historyDetail,setHistoryDetail]=useState(null); // key of workout to show detail
-  const [filterStart,setFilterStart]=useState('');
-  const [filterEnd,setFilterEnd]=useState('');
+  const [filterStart,setFilterStart]=useState('last');
+  const [filterEnd,setFilterEnd]=useState('last');
   const [showPicker,setShowPicker]=useState(false);
   const [pickerYear,setPickerYear]=useState(new Date().getFullYear());
   const [pickerMonth,setPickerMonth]=useState(new Date().getMonth());
@@ -224,9 +223,21 @@ function App(){
   function deleteDay(){setData(p=>{const n={...p};delete n[selected];return n});setDraft(mkDay());flash('🗑 Видалено')}
 
   // stats
+  const sortedKeysData = Object.keys(data).sort();
+  const lastKeyData = sortedKeysData.length > 0 ? sortedKeysData[sortedKeysData.length - 1] : '';
+  let actualStart = filterStart;
+  let actualEnd = filterEnd;
+  if (filterStart === 'last') {
+    actualStart = lastKeyData;
+    actualEnd = lastKeyData;
+  } else if (filterStart === 'all') {
+    actualStart = '';
+    actualEnd = '';
+  }
+
   const filteredDataEntries = Object.entries(data).filter(([k])=>{
-    if(filterStart && k < filterStart) return false;
-    if(filterEnd && k > filterEnd) return false;
+    if(actualStart && k < actualStart) return false;
+    if(actualEnd && k > actualEnd) return false;
     return true;
   });
   const filteredData = Object.fromEntries(filteredDataEntries);
@@ -271,34 +282,10 @@ function App(){
     });
     return Object.entries(map).sort((a,b)=>b[1].sets-a[1].sets);
   })();
-  const maxMuscleSets=muscleStats.length?muscleStats[0][1].sets:1;
-
-  // streak
-  const streak=(()=>{
-    let count=0;const today=new Date();today.setHours(0,0,0,0);
-    for(let i=0;i<365;i++){
-      const d=new Date(today);d.setDate(today.getDate()-i);
-      if(data[toKey(d)])count++;else if(i>0)break;
-    }
-    return count;
-  })();
-
-  // avg sets per workout
-  const avgSets=totalDays?Math.round(totalSets/totalDays):0;
-  // fav muscle
-  const favMuscle=muscleStats.length?React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}},React.createElement('img',{src:muscleStats[0][1].icon,className:'inline-muscle-icon'}),muscleStats[0][1].label):'—';
-
   // ─── CALENDAR TAB ───────────────────────────────────────────────
   function renderCalendar(){
     const hasData=data[selected];
     return React.createElement(React.Fragment,null,
-      // stats (clickable)
-      React.createElement('div',{className:'stats-bar',onClick:()=>setShowStats(true)},
-        React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},totalDays),React.createElement('div',{className:'stat-lbl'},'Днів')),
-        React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},totalSets),React.createElement('div',{className:'stat-lbl'},'Підходів')),
-        React.createElement('div',{className:'stat-pill'},React.createElement('div',{className:'stat-num'},thisWeek),React.createElement('div',{className:'stat-lbl'},'Тиждень'))
-      ),
-      React.createElement('div',{className:'stats-hint'},'натисни для детальної статистики ↑'),
       // calendar
       React.createElement('div',{className:'calendar-wrap'},
         React.createElement('div',{className:'cal-nav'},
@@ -456,7 +443,9 @@ function App(){
     if(historyDetail) return renderHistoryDetail();
     
     let filterText = 'За весь час';
-    if(filterStart && filterEnd) {
+    if(filterStart === 'last') filterText = 'Last';
+    else if(filterStart === 'all') filterText = 'За весь час';
+    else if(filterStart && filterEnd) {
       if(filterStart === filterEnd) filterText = fmtShort(filterStart);
       else filterText = fmtShort(filterStart) + ' - ' + fmtShort(filterEnd);
     } else if(filterStart) filterText = 'З ' + fmtShort(filterStart);
@@ -467,13 +456,15 @@ function App(){
         React.createElement('h2',null,'📊 Історія'),
         React.createElement('div',{className:'history-filters'},
           React.createElement('div',{className:'h-filter-label',onClick:()=>{
-            setPickerStart(filterStart); setPickerEnd(filterEnd);
-            setPickerYear(new Date().getFullYear()); setPickerMonth(new Date().getMonth());
+            setPickerStart(actualStart); setPickerEnd(actualEnd);
+            setPickerYear(actualStart ? parseInt(actualStart.split('-')[0]) : new Date().getFullYear());
+            setPickerMonth(actualStart ? parseInt(actualStart.split('-')[1])-1 : new Date().getMonth());
             setShowPicker(true);
           }},filterText),
           React.createElement('button',{className:'h-filter-btn',onClick:()=>{
-            setPickerStart(filterStart); setPickerEnd(filterEnd);
-            setPickerYear(new Date().getFullYear()); setPickerMonth(new Date().getMonth());
+            setPickerStart(actualStart); setPickerEnd(actualEnd);
+            setPickerYear(actualStart ? parseInt(actualStart.split('-')[0]) : new Date().getFullYear());
+            setPickerMonth(actualStart ? parseInt(actualStart.split('-')[1])-1 : new Date().getMonth());
             setShowPicker(true);
           }},'📅')
         )
@@ -620,7 +611,7 @@ function App(){
           })
         ),
         React.createElement('div',{className:'cc-footer'},
-          React.createElement('button',{className:'cc-action secondary',onClick:()=>{setFilterStart('');setFilterEnd('');setShowPicker(false)}},'Скинути'),
+          React.createElement('button',{className:'cc-action secondary',onClick:()=>{setFilterStart('all');setFilterEnd('all');setShowPicker(false)}},'За весь час'),
           React.createElement('button',{className:'cc-action primary',onClick:()=>{setFilterStart(pickerStart);setFilterEnd(pickerEnd);setShowPicker(false)}},'Застосувати')
         )
       )
@@ -664,59 +655,6 @@ function App(){
       )
     ),
     toast&&React.createElement('div',{key:toast,className:'toast'},toast),
-
-    // stats popup
-    showStats&&React.createElement('div',{className:'stats-overlay',onClick:e=>{if(e.target===e.currentTarget)setShowStats(false)}},
-      React.createElement('div',{className:'stats-popup'},
-        React.createElement('div',{className:'stats-popup-header'},
-          React.createElement('h2',null,'📈 Детальна статистика'),
-          React.createElement('button',{className:'stats-close',onClick:()=>setShowStats(false)},'×')
-        ),
-
-        // streak
-        React.createElement('div',{className:'streak-card'},
-          React.createElement('div',{className:'streak-val'},'🔥 '+streak),
-          React.createElement('div',{className:'streak-lbl'},streak===1?'день поспіль':streak<5?'дні поспіль':'днів поспіль')
-        ),
-
-        // big stats grid
-        React.createElement('div',{className:'big-stats'},
-          React.createElement('div',{className:'big-stat'},
-            React.createElement('div',{className:'big-stat-icon'},'🏋️'),
-            React.createElement('div',{className:'big-stat-val'},(totalTonnage/1000).toFixed(1)+' т'),
-            React.createElement('div',{className:'big-stat-lbl'},'Тоннаж')
-          ),
-          React.createElement('div',{className:'big-stat'},
-            React.createElement('div',{className:'big-stat-icon'},'🔄'),
-            React.createElement('div',{className:'big-stat-val'},totalReps),
-            React.createElement('div',{className:'big-stat-lbl'},'Повторень')
-          ),
-          React.createElement('div',{className:'big-stat'},
-            React.createElement('div',{className:'big-stat-icon'},'📊'),
-            React.createElement('div',{className:'big-stat-val'},avgSets),
-            React.createElement('div',{className:'big-stat-lbl'},'Підх./трен.')
-          ),
-          React.createElement('div',{className:'big-stat'},
-            React.createElement('div',{className:'big-stat-icon'},'⭐'),
-            React.createElement('div',{className:'big-stat-val'},favMuscle),
-            React.createElement('div',{className:'big-stat-lbl'},'Улюблена')
-          )
-        ),
-
-        // muscle breakdown
-        muscleStats.length>0&&React.createElement('div',{className:'muscle-breakdown'},
-          React.createElement('div',{className:'mb-title'},'Підходи по групах м\'язів'),
-          muscleStats.map(([key,stat],i)=>
-            React.createElement('div',{key:key,className:'mb-row'},
-              React.createElement('div',{className:'mb-label',style:{display:'flex',alignItems:'center',gap:'4px'}},React.createElement('img',{src:stat.icon,className:'inline-muscle-icon'}),stat.label),
-              React.createElement('div',{className:'mb-bar-wrap'},
-                React.createElement('div',{className:'mb-bar c'+i%8,style:{width:Math.round(stat.sets/maxMuscleSets*100)+'%'}})
-              ),
-              React.createElement('div',{className:'mb-val'},stat.sets+' підх.')
-            )
-          )
-        )
-      ),
       renderCustomPicker()
     )
   );
