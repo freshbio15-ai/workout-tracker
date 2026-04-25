@@ -45,6 +45,11 @@ function buildGrid(year, month) {
 // ══════════════════════════════════════════════════════════════════════
 function App() {
   const [data, setData]         = useState(load);           // { 'YYYY-MM-DD': {muscle, exercises} }
+  const [settings, setSettings] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('gymbook-settings')) || { userWeight: '' }; }
+    catch { return { userWeight: '' }; }
+  });
+  const [showSettings, setShowSettings] = useState(false);
   const [calDate, setCalDate]   = useState(new Date());     // month being viewed
   const [selected, setSelected] = useState(todayKey());     // currently selected day key
   const [draft, setDraft]       = useState(null);           // editing draft for selected day
@@ -52,6 +57,7 @@ function App() {
   const toastTimer = useRef(null);
 
   useEffect(() => { save(data); }, [data]);
+  useEffect(() => { localStorage.setItem('gymbook-settings', JSON.stringify(settings)); }, [settings]);
 
   // open day → load existing or blank draft
   useEffect(() => {
@@ -236,13 +242,31 @@ function App() {
                   className:'set-input', type:'text', inputMode:'decimal',
                   placeholder:'0',
                   value:s.isBodyweight ? 'СВ' : s.weight,
-                  onChange:e=>setSetField(ei,si,'weight',e.target.value),
+                  onChange:e=>{
+                    setSetField(ei,si,'weight',e.target.value);
+                    setSetField(ei,si,'isBodyweight',false);
+                  },
                   disabled: s.isBodyweight,
                   style: s.isBodyweight ? { opacity: 0.7 } : {}
                 }),
                 React.createElement('button', {
                   className:'bw-btn' + (s.isBodyweight ? ' active' : ''),
-                  onClick: () => setSetField(ei, si, 'isBodyweight', !s.isBodyweight)
+                  onClick: () => {
+                    if (!settings.userWeight) {
+                      showToast('⚙️ Вкажіть свою вагу в налаштуваннях');
+                      setShowSettings(true);
+                      return;
+                    }
+                    const newState = !s.isBodyweight;
+                    setDraft(prev => {
+                      const ex = prev.exercises.map((e,i) => i!==ei ? e : {
+                        ...e, sets: e.sets.map((set,j) => j!==si ? set : {
+                          ...set, isBodyweight: newState, weight: newState ? settings.userWeight : ''
+                        })
+                      });
+                      return { ...prev, exercises:ex };
+                    });
+                  }
                 }, 'СВ'),
                 ex.sets.length > 1 ? React.createElement('button', {
                   className:'set-del-btn', onClick:()=>removeSet(ei,si)
@@ -325,6 +349,9 @@ function App() {
           React.createElement('h1', null, 'Gym Notebook'),
           React.createElement('p', null, 'Твій щоденник тренувань')
         )
+      ),
+      React.createElement('div', { className:'header-actions' },
+        React.createElement('button', { className:'settings-btn', onClick:()=>setShowSettings(true) }, '⚙️')
       )
     ),
 
@@ -380,7 +407,21 @@ function App() {
     renderHistory(),
 
     // toast
-    toast && React.createElement('div', { key:toast, className:'toast' }, toast)
+    toast && React.createElement('div', { key:toast, className:'toast' }, toast),
+
+    // settings modal
+    showSettings && React.createElement('div', { className:'modal-overlay', onClick:(e)=>{if(e.target===e.currentTarget)setShowSettings(false)} },
+      React.createElement('div', { className:'modal-box' },
+        React.createElement('h3', null, '⚙️ Налаштування'),
+        React.createElement('label', { style:{fontSize:'12px', color:'var(--text2)', marginBottom:'8px', display:'block', fontWeight:600} }, 'Твоя вага (кг)'),
+        React.createElement('input', {
+          className:'modal-input', type:'number', inputMode:'decimal', placeholder:'Напр. 75',
+          value: settings.userWeight,
+          onChange: e => setSettings({ ...settings, userWeight: e.target.value })
+        }),
+        React.createElement('button', { className:'modal-close-btn', onClick:()=>setShowSettings(false) }, 'Зберегти')
+      )
+    )
   );
 }
 
