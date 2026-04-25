@@ -1,4 +1,4 @@
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useCallback } = React;
 
 const MUSCLES = ['Спина','Груди','Ноги','Плечі','Біцепс','Трицепс','Прес','Кардіо'];
 const STORAGE = 'gymbook-data';
@@ -6,8 +6,66 @@ const SETTINGS_KEY = 'gymbook-settings';
 const WEEKDAYS = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
 const MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
 
+// ── Firebase init ────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDZE65pb7oiBc6oa8NbTlHPf1QB55I9RXA",
+  authDomain: "gym-notebook-74450.firebaseapp.com",
+  projectId: "gym-notebook-74450",
+  storageBucket: "gym-notebook-74450.firebasestorage.app",
+  messagingSenderId: "980458996682",
+  appId: "1:980458996682:web:4d80b560fd8a9f65c78533"
+};
+const fbApp = firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// ── localStorage (offline cache) ─────────────────────────────────────
 function load(k,def){try{return JSON.parse(localStorage.getItem(k))||def}catch{return def}}
 function persist(k,v){localStorage.setItem(k,JSON.stringify(v))}
+
+// ── Firestore helpers ────────────────────────────────────────────────
+function userDoc(uid, collection) {
+  return db.collection('users').doc(uid).collection(collection);
+}
+
+async function saveToCloud(uid, data, settings) {
+  try {
+    const batch = db.batch();
+    // save settings
+    batch.set(db.collection('users').doc(uid), { settings, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    // save each workout day
+    const existingSnap = await userDoc(uid, 'workouts').get();
+    const existingKeys = new Set();
+    existingSnap.forEach(doc => existingKeys.add(doc.id));
+    // delete removed days
+    existingKeys.forEach(key => {
+      if (!data[key]) batch.delete(userDoc(uid, 'workouts').doc(key));
+    });
+    // set current days
+    Object.entries(data).forEach(([key, val]) => {
+      batch.set(userDoc(uid, 'workouts').doc(key), val);
+    });
+    await batch.commit();
+  } catch (e) {
+    console.error('Cloud save error:', e);
+  }
+}
+
+async function loadFromCloud(uid) {
+  try {
+    const [userSnap, workoutsSnap] = await Promise.all([
+      db.collection('users').doc(uid).get(),
+      userDoc(uid, 'workouts').get()
+    ]);
+    const settings = userSnap.exists && userSnap.data().settings ? userSnap.data().settings : null;
+    const data = {};
+    workoutsSnap.forEach(doc => { data[doc.id] = doc.data(); });
+    return { data, settings };
+  } catch (e) {
+    console.error('Cloud load error:', e);
+    return null;
+  }
+}
 function toKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function todayKey(){return toKey(new Date())}
 function fmtFull(k){const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long'})}
@@ -35,10 +93,57 @@ function App(){
   const [draft,setDraft]=useState(null);
   const [toast,setToast]=useState(null);
   const [showStats,setShowStats]=useState(false);
+  const [uid,setUid]=useState(null);
+  const [cloudStatus,setCloudStatus]=useState('connecting'); // connecting | synced | saving | offline
   const tRef=useRef(null);
+  const saveTimer=useRef(null);
+  const isFirstLoad=useRef(true);
 
+  // ── Firebase anonymous auth ──────────────────────────────────────
+  useEffect(()=>{
+    const unsub = auth.onAuthStateChanged(async (user)=>{
+      if(user){
+        setUid(user.uid);
+        // load from cloud on first auth
+        setCloudStatus('connecting');
+        const cloud = await loadFromCloud(user.uid);
+        if(cloud){
+          const localKeys = Object.keys(load(STORAGE,{}));
+          const cloudKeys = Object.keys(cloud.data);
+          // merge: cloud wins if it has more data, otherwise keep local
+          if(cloudKeys.length >= localKeys.length){
+            setData(cloud.data);
+            persist(STORAGE, cloud.data);
+          }
+          if(cloud.settings){
+            setSettings(cloud.settings);
+            persist(SETTINGS_KEY, cloud.settings);
+          }
+        }
+        setCloudStatus('synced');
+        isFirstLoad.current = false;
+      } else {
+        // sign in anonymously
+        try { await auth.signInAnonymously(); }
+        catch(e){ console.error('Auth error:',e); setCloudStatus('offline'); }
+      }
+    });
+    return ()=>unsub();
+  },[]);
+
+  // ── Save to localStorage + debounced cloud save ──────────────────
   useEffect(()=>{persist(STORAGE,data)},[data]);
   useEffect(()=>{persist(SETTINGS_KEY,settings)},[settings]);
+
+  useEffect(()=>{
+    if(!uid || isFirstLoad.current) return;
+    setCloudStatus('saving');
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(async ()=>{
+      await saveToCloud(uid, data, settings);
+      setCloudStatus('synced');
+    }, 1500); // debounce 1.5s to avoid too many writes
+  },[data, settings]);
 
   useEffect(()=>{
     if(!selected){setDraft(null);return}
@@ -283,6 +388,12 @@ function App(){
           React.createElement('div',{className:'logo-text'},
             React.createElement('h1',null,'Gym Notebook'),
             React.createElement('p',null,'Твій щоденник тренувань')
+          )
+        ),
+        React.createElement('div',{className:'cloud-status'},
+          React.createElement('span',{className:'cloud-dot '+(cloudStatus==='synced'?'green':cloudStatus==='saving'?'yellow':'gray')}),
+          React.createElement('span',{className:'cloud-text'},
+            cloudStatus==='synced'?'☁️ Синхр.':cloudStatus==='saving'?'⏳ Зберіг...':cloudStatus==='connecting'?'🔄 З\'єдн...':'📴 Офлайн'
           )
         )
       ),
