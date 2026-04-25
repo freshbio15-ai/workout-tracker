@@ -129,6 +129,21 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 
 .day-panel-body{padding:14px 16px}
 
+/* ===== DAY MUSCLE CHIPS ===== */
+.muscle-row{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.muscle-tag{padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;background:var(--bg4);border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:5px}
+.muscle-tag.active{background:linear-gradient(135deg,var(--accent),#6d28d9);border-color:var(--accent);color:#fff}
+.muscle-tag:active{transform:scale(.93)}
+.chip-del{font-size:14px;opacity:.4;transition:opacity .15s;line-height:1}
+.chip-del:hover{opacity:1}
+
+.add-muscle-wrap{display:flex;gap:5px;align-items:center}
+.add-muscle-input{width:100px;padding:6px 10px;border-radius:20px;background:var(--bg4);border:1px solid var(--border);color:var(--text1);font-size:12px;font-family:inherit;transition:border-color .2s}
+.add-muscle-input::placeholder{color:var(--text3)}
+.add-muscle-input:focus{outline:none;border-color:var(--accent);width:120px}
+.add-muscle-btn{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--accent),#6d28d9);border:none;color:#fff;font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:transform .15s}
+.add-muscle-btn:active{transform:scale(.85)}
+
 /* ===== EMOJI MUSCLE SELECTOR ===== */
 .emoji-muscle-row{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
 .emoji-muscle-btn{width:36px;height:36px;border-radius:9px;background:var(--bg3);border:1.5px solid var(--border);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;padding:0;overflow:hidden}
