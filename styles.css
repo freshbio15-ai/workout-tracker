@@ -180,8 +180,24 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .set-del-btn{width:26px;height:26px;border-radius:7px;background:none;border:none;color:var(--text3);font-size:15px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .set-del-btn:active{color:var(--red)}
 
-.add-set-btn{width:100%;padding:7px;background:rgba(124,58,237,.05);border:1px dashed rgba(124,58,237,.2);border-radius:var(--radius-xs);color:var(--accent2);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;margin-top:6px}
+.add-set-row{display:flex;gap:8px;margin-top:6px}
+.add-set-btn{flex:1;padding:7px;background:rgba(124,58,237,.05);border:1px dashed rgba(124,58,237,.2);border-radius:var(--radius-xs);color:var(--accent2);font-size:12px;font-weight:600;font-family:inherit;cursor:pointer}
 .add-set-btn:active{background:rgba(124,58,237,.12)}
+.timer-btn{width:40px;height:100%;flex-shrink:0;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);color:var(--text1);font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s}
+.timer-btn:active{transform:scale(.92)}
+
+/* Timer Popup & Header */
+.timer-header{background:linear-gradient(135deg,var(--orange),#d97706);height:100%;display:flex;align-items:center;justify-content:center;position:relative;padding:max(18px, env(safe-area-inset-top)) 20px 14px;border-radius:0 0 16px 16px;box-shadow:0 10px 30px rgba(245,158,11,.3);animation:slideDown .2s ease-out;width:100%}
+.timer-text{font-size:24px;font-weight:800;color:#fff;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:8px}
+.timer-cancel{position:absolute;right:20px;bottom:8px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.2);border:none;color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.timer-cancel:active{background:rgba(0,0,0,.3)}
+
+.timer-popup-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.timer-preset{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:14px;font-size:16px;font-weight:700;color:var(--text1);cursor:pointer;transition:all .1s}
+.timer-preset:active{transform:scale(.95);background:var(--bg4)}
+.timer-custom{grid-column:span 2;display:flex;gap:8px;margin-top:4px}
+.timer-custom input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:12px;font-size:16px;color:var(--text1);font-weight:600;text-align:center}
+.timer-custom button{background:linear-gradient(135deg,var(--accent),#6d28d9);color:#fff;border:none;border-radius:12px;padding:0 20px;font-weight:700;cursor:pointer}
 
 .add-ex-btn{width:100%;padding:10px;background:rgba(124,58,237,.05);border:1px dashed rgba(124,58,237,.18);border-radius:var(--radius-sm);color:var(--accent2);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;margin-bottom:12px}
 .add-ex-btn:active{background:rgba(124,58,237,.12)}

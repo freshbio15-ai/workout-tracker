@@ -113,6 +113,10 @@ function App(){
   const [pickerEnd,setPickerEnd]=useState('');
   const [uid,setUid]=useState(null);
   const [cloudStatus,setCloudStatus]=useState('connecting'); // connecting | synced | saving | offline
+  const [timerEnd,setTimerEnd]=useState(null);
+  const [timeLeft,setTimeLeft]=useState(0);
+  const [showTimerPopup,setShowTimerPopup]=useState(false);
+  const [timerCustom,setTimerCustom]=useState('');
   const tRef=useRef(null);
   const saveTimer=useRef(null);
   const isFirstLoad=useRef(true);
@@ -171,6 +175,36 @@ function App(){
   },[selected]);
 
   function flash(m){clearTimeout(tRef.current);setToast(m);tRef.current=setTimeout(()=>setToast(null),1800)}
+
+  // ── Timer Logic ──────────────────────────────────────────────────
+  useEffect(()=>{
+    if(!timerEnd) return;
+    const tick = () => {
+      const remaining = Math.ceil((timerEnd - Date.now()) / 1000);
+      if (remaining <= 0) {
+        setTimeLeft(0);
+        setTimerEnd(null);
+        if ('vibrate' in navigator) navigator.vibrate([500, 200, 500, 200, 1000]);
+      } else {
+        setTimeLeft(remaining);
+      }
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [timerEnd]);
+
+  function startTimer(sec) {
+    setTimerEnd(Date.now() + sec * 1000);
+    setTimeLeft(sec);
+    setShowTimerPopup(false);
+  }
+
+  function fmtTimer(s) {
+    const m = Math.floor(s/60);
+    const rs = s % 60;
+    return `${m}:${rs.toString().padStart(2, '0')}`;
+  }
 
   // calendar
   const year=calDate.getFullYear(), month=calDate.getMonth();
@@ -356,7 +390,10 @@ function App(){
               React.createElement('button',{className:'bw-btn'+(s.bw?' active':''),onClick:()=>toggleBW(ei,si)},'СВ'),
               ex.sets.length>1?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},'×'):React.createElement('div')
             )),
-            React.createElement('button',{className:'add-set-btn',onClick:()=>addSet(ei)},'+ Підхід')
+            React.createElement('div',{className:'add-set-row'},
+              React.createElement('button',{className:'add-set-btn',onClick:()=>addSet(ei)},'+ Підхід'),
+              React.createElement('button',{className:'timer-btn',onClick:()=>setShowTimerPopup(true)},'⏱️')
+            )
           )),
           React.createElement('button',{className:'add-ex-btn',onClick:addEx},'+ Додати вправу'),
           React.createElement('button',{className:'save-btn',onClick:saveDay},hasData?'💾 Оновити':'✅ Зберегти тренування'),
@@ -675,7 +712,12 @@ function App(){
   // ─── MAIN RENDER ───────────────────────────────────────────────
   return React.createElement('div',{id:'app-root'},
     React.createElement('div',{className:'page'},
-      React.createElement('div',{className:'app-header'},
+      timerEnd ? React.createElement('div',{className:'app-header',style:{padding:0}},
+        React.createElement('div',{className:'timer-header'},
+          React.createElement('div',{className:'timer-text'},'⏳',fmtTimer(timeLeft)),
+          React.createElement('button',{className:'timer-cancel',onClick:()=>setTimerEnd(null)},'✕')
+        )
+      ) : React.createElement('div',{className:'app-header'},
         React.createElement('div',{className:'app-logo'},
           React.createElement('div',{className:'logo-icon'},'💪'),
           React.createElement('div',{className:'logo-text'},
@@ -709,7 +751,30 @@ function App(){
       )
     ),
     toast&&React.createElement('div',{key:toast,className:'toast'},toast),
-      renderCustomPicker()
+      renderCustomPicker(),
+      showTimerPopup && React.createElement('div',{className:'cc-overlay',onClick:()=>setShowTimerPopup(false)},
+        React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation()},
+          React.createElement('div',{className:'cc-header'},
+            React.createElement('div',{className:'cc-title'},'⏱️ Таймер відпочинку'),
+            React.createElement('button',{className:'stats-close',onClick:()=>setShowTimerPopup(false)},'×')
+          ),
+          React.createElement('div',{className:'timer-popup-grid'},
+            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(60)},'1 хв'),
+            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(90)},'1.5 хв'),
+            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(120)},'2 хв'),
+            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(180)},'3 хв'),
+            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(240)},'4 хв'),
+            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(300)},'5 хв'),
+            React.createElement('div',{className:'timer-custom'},
+              React.createElement('input',{type:'number',inputMode:'numeric',placeholder:'Хвилини…',value:timerCustom,onChange:e=>setTimerCustom(e.target.value)}),
+              React.createElement('button',{onClick:()=>{
+                const m = parseFloat(timerCustom);
+                if(!isNaN(m) && m > 0) startTimer(m * 60);
+              }},'Старт')
+            )
+          )
+        )
+      )
   );
 }
 
