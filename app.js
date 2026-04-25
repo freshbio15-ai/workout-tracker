@@ -107,6 +107,11 @@ function App(){
   const [historyDetail,setHistoryDetail]=useState(null); // key of workout to show detail
   const [filterStart,setFilterStart]=useState('');
   const [filterEnd,setFilterEnd]=useState('');
+  const [showPicker,setShowPicker]=useState(false);
+  const [pickerYear,setPickerYear]=useState(new Date().getFullYear());
+  const [pickerMonth,setPickerMonth]=useState(new Date().getMonth());
+  const [pickerStart,setPickerStart]=useState('');
+  const [pickerEnd,setPickerEnd]=useState('');
   const [uid,setUid]=useState(null);
   const [cloudStatus,setCloudStatus]=useState('connecting'); // connecting | synced | saving | offline
   const tRef=useRef(null);
@@ -449,13 +454,24 @@ function App(){
 
   function renderHistory(){
     if(historyDetail) return renderHistoryDetail();
+    
+    let filterText = 'За весь час';
+    if(filterStart && filterEnd) {
+      if(filterStart === filterEnd) filterText = fmtShort(filterStart);
+      else filterText = fmtShort(filterStart) + ' - ' + fmtShort(filterEnd);
+    } else if(filterStart) filterText = 'З ' + fmtShort(filterStart);
+    else if(filterEnd) filterText = 'До ' + fmtShort(filterEnd);
+
     return React.createElement(React.Fragment,null,
       React.createElement('div',{className:'history-header'},
         React.createElement('h2',null,'📊 Історія'),
         React.createElement('div',{className:'history-filters'},
-          React.createElement('input',{type:'date',className:'h-filter-date',value:filterStart,onChange:e=>setFilterStart(e.target.value)}),
-          React.createElement('span',null,'-'),
-          React.createElement('input',{type:'date',className:'h-filter-date',value:filterEnd,onChange:e=>setFilterEnd(e.target.value)})
+          React.createElement('div',{className:'h-filter-label'},filterText),
+          React.createElement('button',{className:'h-filter-btn',onClick:()=>{
+            setPickerStart(filterStart); setPickerEnd(filterEnd);
+            setPickerYear(new Date().getFullYear()); setPickerMonth(new Date().getMonth());
+            setShowPicker(true);
+          }},'📅')
         )
       ),
       React.createElement('div',{className:'tonnage-card'},
@@ -560,6 +576,53 @@ function App(){
     );
   }
 
+  function renderCustomPicker(){
+    if(!showPicker) return null;
+    const grid = buildGrid(pickerYear, pickerMonth);
+    
+    function handleDayClick(d) {
+      const k = toKey(new Date(pickerYear, pickerMonth, d));
+      if (!pickerStart) {
+        setPickerStart(k); setPickerEnd(k);
+      } else if (pickerStart && pickerEnd === pickerStart) {
+        if (k < pickerStart) { setPickerStart(k); setPickerEnd(pickerStart); }
+        else { setPickerEnd(k); }
+      } else {
+        setPickerStart(k); setPickerEnd(k);
+      }
+    }
+
+    return React.createElement('div',{className:'cc-overlay',onClick:()=>setShowPicker(false)},
+      React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation()},
+        React.createElement('div',{className:'cc-header'},
+          React.createElement('div',{className:'cc-title'},`${MONTHS[pickerMonth]} ${pickerYear}`),
+          React.createElement('div',{className:'cc-nav'},
+            React.createElement('button',{className:'cc-btn',onClick:()=>setPickerMonth(m=>{if(m===0){setPickerYear(y=>y-1);return 11}return m-1})},'‹'),
+            React.createElement('button',{className:'cc-btn',onClick:()=>setPickerMonth(m=>{if(m===11){setPickerYear(y=>y+1);return 0}return m+1})},'›')
+          )
+        ),
+        React.createElement('div',{className:'cc-grid'},
+          WEEKDAYS.map(w=>React.createElement('div',{key:w,className:'cc-wd'},w)),
+          grid.map((d,i)=>{
+            if(!d) return React.createElement('div',{key:i,className:'cc-day empty'});
+            const k = toKey(new Date(pickerYear, pickerMonth, d));
+            let cls = 'cc-day';
+            if(data[k]) cls += ' has-data';
+            if(k === pickerStart || k === pickerEnd) cls += ' selected';
+            if(k === pickerStart) cls += ' range-start';
+            if(k === pickerEnd) cls += ' range-end';
+            if(pickerStart && pickerEnd && k > pickerStart && k < pickerEnd) cls += ' in-range';
+            return React.createElement('div',{key:i,className:cls,onClick:()=>handleDayClick(d)},d);
+          })
+        ),
+        React.createElement('div',{className:'cc-footer'},
+          React.createElement('button',{className:'cc-action secondary',onClick:()=>{setFilterStart('');setFilterEnd('');setShowPicker(false)}},'Скинути'),
+          React.createElement('button',{className:'cc-action primary',onClick:()=>{setFilterStart(pickerStart);setFilterEnd(pickerEnd);setShowPicker(false)}},'Застосувати')
+        )
+      )
+    );
+  }
+
   // ─── MAIN RENDER ───────────────────────────────────────────────
   return React.createElement('div',{id:'app-root'},
     React.createElement('div',{className:'page'},
@@ -649,7 +712,8 @@ function App(){
             )
           )
         )
-      )
+      ),
+      renderCustomPicker()
     )
   );
 }
