@@ -80,7 +80,36 @@ function toKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2
 function todayKey(){return toKey(new Date())}
 function fmtFull(k){const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('uk-UA',{weekday:'long',day:'numeric',month:'long'})}
 function fmtShort(k){const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString('uk-UA',{day:'numeric',month:'short'})}
-const mkSet=()=>({reps:'',weight:'',bw:false});
+
+// ── SVGs ─────────────────────────────────────────────────────────────
+const CalendarIcon = ({size=24, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('rect', {x: 3, y: 4, width: 18, height: 18, rx: 2, ry: 2}), React.createElement('line', {x1: 16, y1: 2, x2: 16, y2: 6}), React.createElement('line', {x1: 8, y1: 2, x2: 8, y2: 6}), React.createElement('line', {x1: 3, y1: 10, x2: 21, y2: 10}));
+const HistoryIcon = ({size=24, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 18, y1: 20, x2: 18, y2: 10}), React.createElement('line', {x1: 12, y1: 20, x2: 12, y2: 4}), React.createElement('line', {x1: 6, y1: 20, x2: 6, y2: 14}));
+const SettingsIcon = ({size=24, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('circle', {cx: 12, cy: 12, r: 3}), React.createElement('path', {d: 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'}));
+const TimerIcon = ({size=24, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('circle', {cx: 12, cy: 13, r: 8}), React.createElement('path', {d: 'M12 9v4l2 2'}), React.createElement('line', {x1: 10, y1: 2, x2: 14, y2: 2}));
+const TrendingUpIcon = ({size=24, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('polyline', {points: '23 6 13.5 15.5 8.5 10.5 1 18'}), React.createElement('polyline', {points: '17 6 23 6 23 12'}));
+const ActivityIcon = ({size=24, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('polyline', {points: '22 12 18 12 15 21 9 3 6 12 2 12'}));
+const CheckCircleIcon = ({size=14, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M22 11.08V12a10 10 0 1 1-5.93-9.14'}), React.createElement('polyline', {points: '22 4 12 14.01 9 11.01'}));
+const RefreshIcon = ({size=14, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'}), React.createElement('polyline', {points: '21 3 21 8 16 8'}));
+const WifiIcon = ({size=14, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M5 12.55a11 11 0 0 1 14.08 0'}), React.createElement('path', {d: 'M1.42 9a16 16 0 0 1 21.16 0'}), React.createElement('path', {d: 'M8.53 16.11a6 6 0 0 1 6.95 0'}), React.createElement('line', {x1: 12, y1: 20, x2: 12.01, y2: 20}));
+const WifiOffIcon = ({size=14, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 2, y1: 2, x2: 22, y2: 22}), React.createElement('path', {d: 'M8.53 16.11a6 6 0 0 1 6.95 0'}), React.createElement('line', {x1: 12, y1: 20, x2: 12.01, y2: 20}));
+const EditIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7'}), React.createElement('path', {d: 'M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'}));
+const TrashIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('polyline', {points: '3 6 5 6 21 6'}), React.createElement('path', {d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2'}), React.createElement('line', {x1: 10, y1: 11, x2: 10, y2: 17}), React.createElement('line', {x1: 14, y1: 11, x2: 14, y2: 17}));
+const SaveIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'}), React.createElement('polyline', {points: '17 21 17 13 7 13 7 21'}), React.createElement('polyline', {points: '7 3 7 8 15 8'}));
+const CheckIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('polyline', {points: '20 6 9 17 4 12'}));
+const BookIcon = ({size=48, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20'}), React.createElement('path', {d: 'M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z'}));
+const TargetIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('circle', {cx: 12, cy: 12, r: 10}), React.createElement('circle', {cx: 12, cy: 12, r: 6}), React.createElement('circle', {cx: 12, cy: 12, r: 2}));
+const LightbulbIcon = ({size=20, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M9 21h6'}), React.createElement('path', {d: 'M10 21v-4c0-1.5-2.5-3-3-5a5 5 0 1 1 10 0c0 2-3 3.5-3 5v4'}));
+const WeightIcon = ({size=18, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z'}), React.createElement('line', {x1: 7, y1: 7, x2: 7.01, y2: 7}));
+const SmartphoneIcon = ({size=18, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('rect', {x: 5, y: 2, width: 14, height: 20, rx: 2, ry: 2}), React.createElement('line', {x1: 12, y1: 18, x2: 12.01, y2: 18}));
+const BarChartIcon = ({size=18, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 12, y1: 20, x2: 12, y2: 10}), React.createElement('line', {x1: 18, y1: 20, x2: 18, y2: 4}), React.createElement('line', {x1: 6, y1: 20, x2: 6, y2: 16}));
+const AlertTriangleIcon = ({size=18, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z'}), React.createElement('line', {x1: 12, y1: 9, x2: 12, y2: 13}), React.createElement('line', {x1: 12, y1: 17, x2: 12.01, y2: 17}));
+const HourglassIcon = ({size=24, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('path', {d: 'M21 21H3'}), React.createElement('path', {d: 'M21 3H3'}), React.createElement('path', {d: 'M7 3v7l5 5 5-5V3'}), React.createElement('path', {d: 'M7 21v-7l5-5 5 5v7'}));
+const XIcon = ({size=18, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 18, y1: 6, x2: 6, y2: 18}), React.createElement('line', {x1: 6, y1: 6, x2: 18, y2: 18}));
+const PlusIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 12, y1: 5, x2: 12, y2: 19}), React.createElement('line', {x1: 5, y1: 12, x2: 19, y2: 12}));
+const ArrowLeftIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 19, y1: 12, x2: 5, y2: 12}), React.createElement('polyline', {points: '12 19 5 12 12 5'}));
+const ArrowRightIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 5, y1: 12, x2: 19, y2: 12}), React.createElement('polyline', {points: '12 5 19 12 12 19'}));
+
+const mkSet=()=>({reps:'',weight:'',rest:'',bw:false});
 const mkEx=()=>({name:'',muscle:'',sets:[mkSet()]});
 const mkDay=()=>({muscle:'',exercises:[mkEx()]});
 
@@ -95,6 +124,9 @@ function calcTonnage(workout){
 
 // ══════════════════════════════════════════════════════════════════
 function App(){
+
+
+
   const [data,setData]=useState(()=>load(STORAGE,{}));
   const [settings,setSettings]=useState(()=>load(SETTINGS_KEY,{userWeight:'',muscles:[]}));
   const [newMuscle,setNewMuscle]=useState('');
@@ -112,24 +144,51 @@ function App(){
   const [pickerStart,setPickerStart]=useState('');
   const [pickerEnd,setPickerEnd]=useState('');
   const [uid,setUid]=useState(null);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminAccounts, setAdminAccounts] = useState([]);
+
   const [cloudStatus,setCloudStatus]=useState('connecting'); // connecting | synced | saving | offline
   const [timerEnd,setTimerEnd]=useState(null);
   const [timeLeft,setTimeLeft]=useState(0);
   const [showTimerPopup,setShowTimerPopup]=useState(false);
+  const [showCalendarPopup,setShowCalendarPopup]=useState(false);
   const [timerCustomMin,setTimerCustomMin]=useState(1);
   const [timerCustomSec,setTimerCustomSec]=useState(0);
   const tRef=useRef(null);
   const saveTimer=useRef(null);
   const isFirstLoad=useRef(true);
 
+  // Check if a given weight is a PR for an exercise up to a certain date
+  const checkPR = useCallback((exName, currentWeight, dateKey) => {
+    if(!exName || !currentWeight || currentWeight <= 0) return false;
+    let isPR = true;
+    let hasPrevious = false;
+    for(let d in data) {
+      if(d < dateKey) {
+        data[d].exercises.forEach(ex => {
+          if(ex.name.toLowerCase().trim() === exName.toLowerCase().trim()) {
+            ex.sets.forEach(s => {
+              if(!s.bw && s.weight >= currentWeight) isPR = false;
+              if(!s.bw && s.weight > 0) hasPrevious = true;
+            });
+          }
+        });
+      }
+    }
+    return isPR && hasPrevious; // Only highlight if it beats previous records (and there were previous records)
+  }, [data]);
+
+
   // ── Firebase anonymous auth ──────────────────────────────────────
   useEffect(()=>{
     const unsub = auth.onAuthStateChanged(async (user)=>{
       if(user){
-        setUid(user.uid);
+        const override = localStorage.getItem('override_uid');
+        const activeUid = override || user.uid;
+        setUid(activeUid);
         // load from cloud on first auth
         setCloudStatus('connecting');
-        const cloud = await loadFromCloud(user.uid);
+        const cloud = await loadFromCloud(activeUid);
         if(cloud){
           const localKeys = Object.keys(load(STORAGE,{}));
           const cloudKeys = Object.keys(cloud.data);
@@ -199,6 +258,24 @@ function App(){
     setTimerEnd(Date.now() + sec * 1000);
     setTimeLeft(sec);
     setShowTimerPopup(false);
+    
+    setDraft(p => {
+      if(!p) return p;
+      const d = JSON.parse(JSON.stringify(p));
+      let found = false;
+      for (let i = d.exercises.length - 1; i >= 0; i--) {
+        const ex = d.exercises[i];
+        for (let j = ex.sets.length - 1; j >= 0; j--) {
+          if (ex.sets[j].reps !== '') {
+            ex.sets[j].rest = sec;
+            found = true;
+            break;
+          }
+        }
+        if(found) break;
+      }
+      return d;
+    });
   }
 
   function fmtTimer(s) {
@@ -211,7 +288,7 @@ function App(){
   const year=calDate.getFullYear(), month=calDate.getMonth();
   const grid=buildGrid(year,month);
   const tKey=todayKey();
-  function selectDay(d){if(!d)return;setSelected(toKey(new Date(year,month,d)))}
+  function selectDay(d){if(!d)return;setSelected(toKey(new Date(year,month,d)));setShowCalendarPopup(false)}
 
   // draft ops
   function setMuscle(m){
@@ -226,7 +303,7 @@ function App(){
           const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
           if(lastW){
             const newExs = lastW[1].exercises.map(ex=>({
-              name: ex.name, muscle: ex.muscle||'', sets: ex.sets.map(s=>({reps:'', weight:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
+              name: ex.name, muscle: ex.muscle||'', sets: ex.sets.map(s=>({reps:'', weight:'', rest:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
             }));
             return {...p, muscle: newM, exercises: newExs};
           } else {
@@ -247,7 +324,7 @@ function App(){
 
   function toggleBW(ei,si){
     const uw=settings.userWeight;
-    if(!uw){flash('⚙️ Вкажи свою вагу в налаштуваннях');setTab('settings');return}
+    if(!uw){flash('Вкажи свою вагу в налаштуваннях');setTab('settings');return}
     setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>{
       if(j!==si)return s;
       const nb=!s.bw;
@@ -257,13 +334,13 @@ function App(){
 
   function saveDay(){
     if(!draft)return;
-    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(settings.userWeight)||0:Number(s.weight)||0,bw:!!s.bw}))})).filter(e=>e.sets.length>0)};
+    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(settings.userWeight)||0:Number(s.weight)||0,rest:Number(s.rest)||0,bw:!!s.bw}))})).filter(e=>e.sets.length>0)};
     if(!cl.exercises.length)return;
     setData(p=>({...p,[selected]:cl}));
-    flash('✅ Збережено!');
+    flash('Збережено!');
   }
 
-  function deleteDay(){setData(p=>{const n={...p};delete n[selected];return n});setDraft(mkDay());flash('🗑 Видалено')}
+  function deleteDay(){setData(p=>{const n={...p};delete n[selected];return n});setDraft(mkDay());flash('Видалено')}
 
   // stats
   const sortedKeysData = Object.keys(data).sort();
@@ -329,48 +406,58 @@ function App(){
   function renderCalendar(){
     const hasData=data[selected];
     return React.createElement(React.Fragment,null,
-      // calendar
-      React.createElement('div',{className:'calendar-wrap'},
-        React.createElement('div',{className:'cal-nav'},
-          React.createElement('button',{className:'cal-arrow',onClick:()=>setCalDate(d=>new Date(d.getFullYear(),d.getMonth()-1,1))},'‹'),
-          React.createElement('span',{className:'cal-month'},`${MONTHS[month]} ${year}`),
-          React.createElement('button',{className:'cal-arrow',onClick:()=>setCalDate(d=>new Date(d.getFullYear(),d.getMonth()+1,1))},'›')
-        ),
-        React.createElement('div',{className:'cal-weekdays'},WEEKDAYS.map(w=>React.createElement('div',{key:w,className:'cal-wd'},w))),
-        React.createElement('div',{className:'cal-grid'},grid.map((d,idx)=>{
-          if(!d)return React.createElement('div',{key:'e'+idx,className:'cal-day empty'});
-          const k=toKey(new Date(year,month,d));
-          let cls='cal-day';
-          if(k===tKey)cls+=' today';
-          if(data[k])cls+=' has-workout';
-          if(k===selected)cls+=' selected';
-          return React.createElement('div',{key:d,className:cls,onClick:()=>selectDay(d)},d,data[k]&&React.createElement('div',{className:'day-dot'}));
-        }))
+      // calendar trigger
+      React.createElement('div', {style: {marginBottom: '16px', display: 'flex', justifyContent: 'center'}},
+        React.createElement('button', {
+          className: 'date-trigger-btn',
+          onClick: () => setShowCalendarPopup(true)
+        }, React.createElement(CalendarIcon, {size: 16}), ' ', selected === tKey ? 'Сьогодні' : fmtFull(selected), ' ▾')
+      ),
+      // calendar modal
+      showCalendarPopup && React.createElement('div',{className:'cc-overlay',onClick:()=>setShowCalendarPopup(false)},
+        React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),style:{padding:0,overflow:'hidden'}},
+          React.createElement('div',{className:'calendar-wrap',style:{marginBottom:0,border:'none',borderRadius:0}},
+            React.createElement('div',{className:'cal-nav'},
+              React.createElement('button',{className:'cal-arrow',onClick:()=>setCalDate(d=>new Date(d.getFullYear(),d.getMonth()-1,1))},React.createElement(ArrowLeftIcon)),
+              React.createElement('span',{className:'cal-month'},`${MONTHS[month]} ${year}`),
+              React.createElement('button',{className:'cal-arrow',onClick:()=>setCalDate(d=>new Date(d.getFullYear(),d.getMonth()+1,1))},React.createElement(ArrowRightIcon))
+            ),
+            React.createElement('div',{className:'cal-weekdays'},WEEKDAYS.map(w=>React.createElement('div',{key:w,className:'cal-wd'},w))),
+            React.createElement('div',{className:'cal-grid'},grid.map((d,idx)=>{
+              if(!d)return React.createElement('div',{key:'e'+idx,className:'cal-day empty'});
+              const k=toKey(new Date(year,month,d));
+              let cls='cal-day';
+              if(k===tKey)cls+=' today';
+              if(data[k])cls+=' has-workout';
+              if(k===selected)cls+=' selected';
+              return React.createElement('div',{key:d,className:cls,onClick:()=>selectDay(d)},d,data[k]&&React.createElement('div',{className:'day-dot'}));
+            }))
+          )
+        )
       ),
       // day editor
       selected&&draft&&React.createElement('div',{className:'day-panel'},
-        React.createElement('div',{className:'day-panel-header'},
+        React.createElement('div',{className:'day-panel-header', style: {paddingBottom: '0', borderBottom: 'none'}},
           React.createElement('div',null,
-            React.createElement('div',{className:'day-panel-title'},selected===tKey?'📅 Сьогодні':'📅 '+fmtFull(selected)),
-            React.createElement('div',{className:'day-panel-date'},hasData?'✏️ Редагування':'Нове тренування')
+            React.createElement('div',{className:'day-panel-title', style: {fontSize: '18px'}},hasData?React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'6px'}}, React.createElement(EditIcon), 'Редагування тренування'):React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'6px'}}, React.createElement(PlusIcon), 'Нове тренування'))
           )
         ),
         React.createElement('div',{className:'day-panel-body'},
           React.createElement('div',{className:'muscle-row'},
             (settings.muscles||[]).map(m=>React.createElement('button',{key:m,className:'muscle-tag'+(draft.muscle===m?' active':''),onClick:()=>setMuscle(m)},
               m,
-              React.createElement('span',{className:'chip-del',onClick:e=>{e.stopPropagation();setSettings(s=>({...s,muscles:s.muscles.filter(x=>x!==m)}));if(draft.muscle===m)setMuscle('')}},'×')
+              React.createElement('span',{className:'chip-del',onClick:e=>{e.stopPropagation();setSettings(s=>({...s,muscles:s.muscles.filter(x=>x!==m)}));if(draft.muscle===m)setMuscle('')}},React.createElement(XIcon))
             )),
             React.createElement('div',{className:'add-muscle-wrap'},
               React.createElement('input',{className:'add-muscle-input',placeholder:'Нова група…',value:newMuscle,onChange:e=>setNewMuscle(e.target.value),
                 onKeyDown:e=>{if(e.key==='Enter'&&newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}
               }),
-              React.createElement('button',{className:'add-muscle-btn',onClick:()=>{if(newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}},'+'))
+              React.createElement('button',{className:'add-muscle-btn',onClick:()=>{if(newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}},React.createElement(PlusIcon)))
           ),
           draft.exercises.map((ex,ei)=>React.createElement('div',{key:ei,className:'exercise-block'},
             React.createElement('div',{className:'ex-name-row'},
               React.createElement('input',{className:'ex-name-input',placeholder:'Назва вправи…',value:ex.name,onChange:e=>setExName(ei,e.target.value)}),
-              draft.exercises.length>1&&React.createElement('button',{className:'ex-remove-btn',onClick:()=>rmEx(ei)},'×')
+              draft.exercises.length>1&&React.createElement('button',{className:'ex-remove-btn',onClick:()=>rmEx(ei)},React.createElement(XIcon))
             ),
             // emoji muscle selector per exercise
             React.createElement('div',{className:'emoji-muscle-row'},
@@ -382,23 +469,35 @@ function App(){
               },React.createElement('img',{src:mg.icon,className:'muscle-btn-icon',alt:mg.label})))
             ),
             React.createElement('div',{className:'sets-header'},
-              React.createElement('span',null,'Сет'),React.createElement('span',null,'Вага'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'СВ'),React.createElement('span',null,'')
+              React.createElement('span',null,'Сет'),React.createElement('span',null,'Вага'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'Відп(с)'),React.createElement('span',null,'СВ'),React.createElement('span',null,'')
             ),
-            ex.sets.map((s,si)=>React.createElement('div',{key:si,className:'set-row'},
-              React.createElement('div',{className:'set-badge'},si+1),
-              React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:s.prevWeight||'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
-              React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:s.prevReps||'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
-              React.createElement('button',{className:'bw-btn'+(s.bw?' active':''),onClick:()=>toggleBW(ei,si)},'СВ'),
-              ex.sets.length>1?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},'×'):React.createElement('div')
-            )),
+            ex.sets.map((s,si)=>{
+              const isPR = !s.bw && s.weight && checkPR(ex.name, Number(s.weight), selected);
+              return React.createElement('div',{key:si,className:'set-row'},
+                React.createElement('div',{className:'set-badge', style: isPR ? {boxShadow: '0 0 8px #10b981', color: '#10b981'} : {}}, si+1),
+                React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:s.prevWeight||'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
+                React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:s.prevReps||'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
+                React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:'-',value:s.rest||'',onChange:e=>setField(ei,si,'rest',e.target.value)}),
+                React.createElement('button',{className:'bw-btn'+(s.bw?' active':''),onClick:()=>toggleBW(ei,si)},'СВ'),
+                ex.sets.length>1?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},React.createElement(XIcon)):React.createElement('div')
+              );
+            }),
             React.createElement('div',{className:'add-set-row'},
-              React.createElement('button',{className:'add-set-btn',onClick:()=>addSet(ei)},'+ Підхід'),
-              React.createElement('button',{className:'timer-btn',onClick:()=>setShowTimerPopup(true)},'⏱️')
+              React.createElement('button',{className:'add-set-btn',onClick:()=>addSet(ei)},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(PlusIcon), 'Підхід')),
+              React.createElement('button',{className:'timer-btn',onClick:()=>setShowTimerPopup(true)},React.createElement(TimerIcon))
             )
           )),
-          React.createElement('button',{className:'add-ex-btn',onClick:addEx},'+ Додати вправу'),
-          React.createElement('button',{className:'save-btn',onClick:saveDay},hasData?'💾 Оновити':'✅ Зберегти тренування'),
-          hasData&&React.createElement('button',{className:'del-day-btn',onClick:deleteDay},'🗑 Видалити')
+          React.createElement('button',{className:'add-ex-btn',onClick:addEx},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(PlusIcon), 'Додати вправу')),
+          React.createElement('button',{className:'save-btn',onClick:saveDay},hasData?React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}, React.createElement(SaveIcon), 'Оновити'):React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}, React.createElement(CheckIcon), 'Зберегти тренування')),
+            React.createElement('button',{className:'save-btn',style:{marginTop:'8px',background:'var(--bg3)',color:'var(--text1)'},onClick:()=>{
+              const tName = prompt('Введіть назву шаблону:');
+              if(tName){
+                const tpls = settings.templates || [];
+                setSettings({...settings, templates: [...tpls, {id: Date.now().toString(), name: tName, muscle: draft.muscle, exercises: draft.exercises}]});
+                flash('Шаблон збережено');
+              }
+            }},'Зберегти як шаблон'),
+          hasData&&React.createElement('button',{className:'del-day-btn',onClick:deleteDay},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(TrashIcon), 'Видалити'))
         )
       )
     );
@@ -420,10 +519,10 @@ function App(){
     return React.createElement(React.Fragment,null,
       // back button
       React.createElement('div',{style:{display:'flex',alignItems:'center',gap:'12px',marginBottom:'16px'}},
-        React.createElement('button',{className:'cal-arrow',onClick:()=>setHistoryDetail(null)},'‹'),
+        React.createElement('button',{className:'cal-arrow',onClick:()=>setHistoryDetail(null)},React.createElement(ArrowLeftIcon)),
         React.createElement('div',null,
           React.createElement('div',{style:{fontSize:'16px',fontWeight:800}},k===tKey?'Сьогодні':fmtFull(k)),
-          React.createElement('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'2px'}},w.muscle?'🎯 '+w.muscle:k)
+          React.createElement('div',{style:{fontSize:'12px',color:'var(--text3)',marginTop:'2px'}},w.muscle?React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(TargetIcon, {size:12}), w.muscle):k)
         )
       ),
       // total tonnage for this day
@@ -461,28 +560,63 @@ function App(){
           if (!sameWeight) return null;
           
           const reps = sets.map(s => Number(s.reps) || 0);
-          const maxReps = Math.max(...reps);
-          if (maxReps < 8) return null;
-          
-          const minReps = Math.min(...reps);
-          const dropPct = (maxReps - minReps) / maxReps;
+          if (Math.max(...reps) < 8) return null;
 
-          if (dropPct >= 0.4) {
+          let maxDropPct = 0;
+          let worstDropInfo = null;
+          let dropsStrs = [];
+
+          for (let i = 1; i < sets.length; i++) {
+            const prevReps = reps[i-1];
+            const currReps = reps[i];
+            if (prevReps === 0) continue;
+            const dropPct = (prevReps - currReps) / prevReps;
+            const restTime = Number(sets[i].rest) || 0;
+            
+            const pctVal = Math.round(dropPct * 100);
+            if (pctVal > 0) dropsStrs.push(`${prevReps}→${currReps} (-${pctVal}%)`);
+            else dropsStrs.push(`${prevReps}→${currReps}`);
+            
+            if (dropPct > maxDropPct) {
+              maxDropPct = dropPct;
+              worstDropInfo = { idx: i, prev: prevReps, curr: currReps, pct: pctVal, rest: restTime };
+            }
+          }
+
+          if (!worstDropInfo || maxDropPct <= 0) return null;
+          
+          const dStr = `Динаміка: ` + dropsStrs.join(', ');
+
+          if (maxDropPct >= 0.4) {
+            if (worstDropInfo.rest > 0 && worstDropInfo.rest <= 90) {
+              return { 
+                color: 'var(--blue)', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.2)',
+                pct: worstDropInfo.pct, max: worstDropInfo.prev, min: worstDropInfo.curr,
+                msg: dStr,
+                advice: `Очікуваний спад через короткий відпочинок (${worstDropInfo.rest}с) перед ${worstDropInfo.idx+1}-м сетом. Для сили відпочивай більше.` 
+              };
+            }
             return { 
               color: 'var(--red)', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.2)',
-              pct: Math.round(dropPct*100), max: maxReps, min: minReps,
-              msg: `М'язи не встигають відновлювати АТФ.`,
-              advice: 'Збільш час відпочинку до 3-5 хвилин для підтримки високої інтенсивності.' 
+              pct: worstDropInfo.pct, max: worstDropInfo.prev, min: worstDropInfo.curr,
+              msg: dStr,
+              advice: `Критичне падіння перед ${worstDropInfo.idx+1}-м сетом. Збільш відпочинок до 3-5 хв або знизь вагу.` 
             };
-          } else if (dropPct >= 0.2) {
+          } else if (maxDropPct >= 0.2) {
             return { 
               color: 'var(--orange)', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.2)',
-              pct: Math.round(dropPct*100), max: maxReps, min: minReps,
-              msg: `Нормальна втома для гіпертрофії.`,
-              advice: 'Для збереження об\'єму спробуй відпочивати 2-3 хвилини.' 
+              pct: Math.round(maxDropPct*100), max: worstDropInfo.prev, min: worstDropInfo.curr,
+              msg: dStr,
+              advice: 'Нормальна втома для гіпертрофії. Тримай поточну вагу та час відпочинку.' 
+            };
+          } else {
+            return { 
+              color: 'var(--green)', bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.2)',
+              pct: Math.round(maxDropPct*100), max: worstDropInfo.prev, min: worstDropInfo.curr,
+              msg: dStr,
+              advice: 'Відмінна витривалість! Можна спробувати додати вагу на наступному тренуванні.' 
             };
           }
-          return null;
         }
         const insight = analyzeDrops(ex.sets);
 
@@ -497,6 +631,7 @@ function App(){
                 React.createElement('th',null,'Сет'),
                 React.createElement('th',null,'Вага'),
                 React.createElement('th',null,'Повт.'),
+                React.createElement('th',null,'Відп.'),
                 React.createElement('th',null,'Об\'єм')
               )
             ),
@@ -505,12 +640,13 @@ function App(){
                 React.createElement('td',null,React.createElement('span',{className:'set-badge'},j+1)),
                 React.createElement('td',null,s.bw?'СВ ('+s.weight+'кг)':s.weight+' кг'),
                 React.createElement('td',null,s.reps),
+                React.createElement('td',null,s.rest ? s.rest + ' с' : '-'),
                 React.createElement('td',{className:'detail-vol'},(Number(s.reps)||0)*(Number(s.weight)||0)+' кг')
               ))
             )
           ),
           insight && React.createElement('div',{className:'insight-box',style:{background:insight.bg,borderColor:insight.border}},
-            React.createElement('div',{className:'insight-icon'},'💡'),
+            React.createElement('div',{className:'insight-icon'},React.createElement(LightbulbIcon)),
             React.createElement('div',{className:'insight-content'},
               React.createElement('h4',{className:'insight-title',style:{color:insight.color}},'Аналіз витривалості'),
               React.createElement('p',{className:'insight-text'},
@@ -518,7 +654,7 @@ function App(){
                 React.createElement('strong',null,`${insight.pct}%`),
                 ` (з ${insight.max} до ${insight.min}). ${insight.msg}`,
                 React.createElement('br'),React.createElement('br'),
-                '⏱ ', React.createElement('strong',null,'Порада: '), insight.advice
+                React.createElement(TimerIcon, {size:12, style:{marginRight:'4px'}}), React.createElement('strong',null,'Порада: '), insight.advice
               )
             )
           )
@@ -527,7 +663,7 @@ function App(){
       // edit button
       React.createElement('button',{className:'save-btn',style:{marginTop:'16px',background:'var(--bg4)',boxShadow:'none',border:'1px solid var(--border)'},onClick:()=>{
         const[y,m]=k.split('-').map(Number);setCalDate(new Date(y,m-1,1));setSelected(k);setTab('calendar');setHistoryDetail(null);
-      }},'✏️ Редагувати тренування')
+      }},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(EditIcon), 'Редагувати тренування'))
     );
   }
 
@@ -545,7 +681,7 @@ function App(){
 
     return React.createElement(React.Fragment,null,
       React.createElement('div',{className:'history-header'},
-        React.createElement('h2',null,'📊 Історія'),
+        React.createElement('h2',{style:{display:'flex',alignItems:'center',gap:'8px'}},React.createElement(HistoryIcon),'Історія'),
         React.createElement('div',{className:'history-filters'},
           React.createElement('div',{className:'h-filter-label',onClick:()=>{
             setPickerStart(actualStart); setPickerEnd(actualEnd);
@@ -558,7 +694,7 @@ function App(){
             setPickerYear(actualStart ? parseInt(actualStart.split('-')[0]) : new Date().getFullYear());
             setPickerMonth(actualStart ? parseInt(actualStart.split('-')[1])-1 : new Date().getMonth());
             setShowPicker(true);
-          }},'📅')
+          }},React.createElement(CalendarIcon, {size:16}))
         )
       ),
       React.createElement('div',{className:'tonnage-card'},
@@ -571,7 +707,7 @@ function App(){
         )
       ),
       history.length===0
-        ?React.createElement('div',{className:'empty-state'},React.createElement('div',{className:'e-icon'},'📔'),React.createElement('h3',null,'Поки пусто'),React.createElement('p',null,'Записуй тренування в календарі'))
+        ?React.createElement('div',{className:'empty-state'},React.createElement('div',{className:'e-icon'},React.createElement(BookIcon)),React.createElement('h3',null,'Поки пусто'),React.createElement('p',null,'Записуй тренування в календарі'))
         :React.createElement(React.Fragment,null,
           // per-muscle tonnage
           muscleStats.length>0&&React.createElement(React.Fragment,null,
@@ -620,13 +756,52 @@ function App(){
   }
 
   // ─── SETTINGS TAB ──────────────────────────────────────────────
+  
+  function renderAnalytics() {
+    // Calculate total volume per day for last 10 days
+    const days = Object.keys(data).sort().slice(-10);
+    const chartData = days.map(d => {
+      let vol = 0;
+      data[d].exercises.forEach(ex => {
+        ex.sets.forEach(s => {
+          if (!s.bw) vol += (s.weight||0) * (s.reps||0);
+        });
+      });
+      return { date: d, vol: vol };
+    });
+
+    const maxVol = Math.max(...chartData.map(d => d.vol), 1); // prevent div by 0
+
+    return React.createElement(React.Fragment, null,
+      React.createElement('div', {className: 'analytics-container'},
+        React.createElement('h2', {style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'16px'}}, React.createElement(TrendingUpIcon), 'Аналітика'),
+        
+        React.createElement('div', {className: 'chart-wrapper'},
+          React.createElement('div', {className: 'chart-title'}, 'Тоннаж за останні 10 тренувань (кг)'),
+          chartData.length > 0 ? React.createElement('div', {className: 'chart-container'},
+            chartData.map((d, i) => {
+              const h = Math.round((d.vol / maxVol) * 100);
+              return React.createElement('div', {key: i, className: 'chart-col'},
+                React.createElement('div', {className: 'chart-value'}, d.vol > 0 ? d.vol : ''),
+                React.createElement('div', {className: 'chart-bar', style: {height: '100%'}},
+                  React.createElement('div', {className: 'chart-bar-fill', style: {height: h + '%'}})
+                ),
+                React.createElement('div', {className: 'chart-label'}, fmtShort(d.date))
+              );
+            })
+          ) : React.createElement('div', {style:{textAlign:'center',color:'var(--text3)'}}, 'Немає даних')
+        )
+      )
+    );
+  }
+
   function renderSettings(){
     return React.createElement(React.Fragment,null,
       React.createElement('div',{className:'settings-section'},
-        React.createElement('h2',null,'⚙️ Налаштування'),
+        React.createElement('h2',{style:{display:'flex',alignItems:'center',gap:'8px'}},React.createElement(SettingsIcon),'Налаштування'),
         // weight card
         React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,'🏋️ Власна вага'),
+          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement(WeightIcon), 'Власна вага')),
           React.createElement('p',null,'Ця вага буде автоматично підставлена, коли ти натиснеш кнопку «СВ» біля підходу'),
           React.createElement('input',{className:'settings-input',type:'number',inputMode:'decimal',placeholder:'Наприклад 75',value:settings.userWeight,
             onChange:e=>setSettings(s=>({...s,userWeight:e.target.value}))}),
@@ -637,28 +812,76 @@ function App(){
         ),
         // info
         React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,'📱 Як зберегти на робочий стіл'),
+          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement(SmartphoneIcon), 'Як зберегти на робочий стіл')),
           React.createElement('p',{style:{lineHeight:'1.6'}},
-            'У Safari натисни кнопку «Поділитися» (квадрат зі стрілкою) → «На початковий екран». Апка буде працювати як повноцінний додаток з іконкою 💪'
+            'У Safari натисни кнопку «Поділитися» (квадрат зі стрілкою) → «На початковий екран». Апка буде працювати як повноцінний додаток з відповідною іконкою'
           )
+        ),
+        // admin panel
+        (settings.userWeight === '175' || localStorage.getItem('override_uid')) && React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,'👑 Admin Panel'),
+          React.createElement('button',{className:'save-btn',onClick:async()=>{
+            try {
+              const snap = await db.collection('users').get();
+              const accs = [];
+              snap.forEach(d => {
+                accs.push({ uid: d.id, ...d.data() });
+              });
+              setAdminAccounts(accs);
+              setShowAdminModal(true);
+            } catch(e) { alert('Помилка: ' + e.message); }
+          }},'Змінити акаунт'),
+          localStorage.getItem('override_uid') && React.createElement('button',{className:'del-day-btn',onClick:()=>{
+            localStorage.removeItem('override_uid');
+            window.location.reload();
+          }},'Повернутись у свій акаунт')
         ),
         // stats
         React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,'📊 Статистика'),
+          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement(BarChartIcon), 'Статистика')),
           React.createElement('p',null,`Всього тренувань: ${totalDays}`),
           React.createElement('p',null,`Всього підходів: ${totalSets}`),
           React.createElement('p',null,`Загальний тоннаж: ${(totalTonnage/1000).toFixed(1)} тонн`)
         ),
-        // danger zone
-        React.createElement('div',{className:'danger-zone'},
-          React.createElement('h3',null,'⚠️ Зона небезпеки'),
-          React.createElement('p',null,'Видалити ВСІ дані тренувань без можливості відновлення'),
-          React.createElement('button',{className:'danger-btn',onClick:()=>{
-            if(confirm('Точно видалити ВСЕ? Цю дію не можна скасувати!')){
-              setData({});setDraft(mkDay());flash('🗑 Все видалено');
+      )
+    );
+  }
+
+  function renderAdminModal(){
+    if(!showAdminModal) return null;
+    return React.createElement('div', {className:'cc-overlay', onClick:()=>setShowAdminModal(false)},
+      React.createElement('div', {className:'cc-modal', onClick:e=>e.stopPropagation(), style:{maxHeight:'80vh',overflow:'auto'}},
+        React.createElement('div', {className:'cc-header'},
+          React.createElement('div', {className:'cc-title'}, 'Вибір акаунту'),
+          React.createElement('button', {className:'cc-btn', onClick:()=>setShowAdminModal(false)}, React.createElement(XIcon))
+        ),
+        adminAccounts.map(acc => React.createElement('div', {
+          key: acc.uid,
+          style: {padding:'12px', borderBottom:'1px solid var(--border)', cursor:'pointer', background: uid === acc.uid ? 'var(--bg3)' : 'transparent', borderRadius:'8px'},
+          onClick: async () => {
+            localStorage.setItem('override_uid', acc.uid);
+            setUid(acc.uid);
+            const cloud = await loadFromCloud(acc.uid);
+            if(cloud) {
+              setData(cloud.data);
+              setSettings(cloud.settings);
+              persist('gymbook-data', cloud.data);
+              persist('gymbook-settings', cloud.settings);
+            } else {
+              setData({});
+              setSettings({});
             }
-          }},'Видалити всі дані')
-        )
+            setShowAdminModal(false);
+            flash('Акаунт змінено');
+          }
+        }, 
+          React.createElement('div', {style:{fontWeight:'bold', fontSize:'14px', marginBottom:'4px', wordBreak:'break-all'}}, acc.uid),
+          React.createElement('div', {style:{fontSize:'12px', color:'var(--text3)'}}, 
+            'Вага: ', acc.settings?.userWeight || '—', ' кг',
+            React.createElement('br'),
+            'Оновлено: ', acc.updatedAt?.toDate ? acc.updatedAt.toDate().toLocaleString() : '—'
+          )
+        ))
       )
     );
   }
@@ -684,8 +907,8 @@ function App(){
         React.createElement('div',{className:'cc-header'},
           React.createElement('div',{className:'cc-title'},`${MONTHS[pickerMonth]} ${pickerYear}`),
           React.createElement('div',{className:'cc-nav'},
-            React.createElement('button',{className:'cc-btn',onClick:()=>setPickerMonth(m=>{if(m===0){setPickerYear(y=>y-1);return 11}return m-1})},'‹'),
-            React.createElement('button',{className:'cc-btn',onClick:()=>setPickerMonth(m=>{if(m===11){setPickerYear(y=>y+1);return 0}return m+1})},'›')
+            React.createElement('button',{className:'cc-btn',onClick:()=>setPickerMonth(m=>{if(m===0){setPickerYear(y=>y-1);return 11}return m-1})},React.createElement(ArrowLeftIcon)),
+            React.createElement('button',{className:'cc-btn',onClick:()=>setPickerMonth(m=>{if(m===11){setPickerYear(y=>y+1);return 0}return m+1})},React.createElement(ArrowRightIcon))
           )
         ),
         React.createElement('div',{className:'cc-grid'},
@@ -715,12 +938,12 @@ function App(){
     React.createElement('div',{className:'page'},
       timerEnd ? React.createElement('div',{className:'app-header',style:{padding:0}},
         React.createElement('div',{className:'timer-header'},
-          React.createElement('div',{className:'timer-text'},'⏳',fmtTimer(timeLeft)),
-          React.createElement('button',{className:'timer-cancel',onClick:()=>setTimerEnd(null)},'✕')
+          React.createElement('div',{className:'timer-text'},React.createElement(HourglassIcon, {size:20}), ' ', fmtTimer(timeLeft)),
+          React.createElement('button',{className:'timer-cancel',onClick:()=>setTimerEnd(null)},React.createElement(XIcon))
         )
       ) : React.createElement('div',{className:'app-header'},
         React.createElement('div',{className:'app-logo'},
-          React.createElement('div',{className:'logo-icon'},'💪'),
+          React.createElement('div',{className:'logo-icon'},React.createElement(ActivityIcon, {size: 20})),
           React.createElement('div',{className:'logo-text'},
             React.createElement('h1',null,'Gym Notebook'),
             React.createElement('p',null,'Твій щоденник тренувань')
@@ -729,35 +952,40 @@ function App(){
         React.createElement('div',{className:'cloud-status'},
           React.createElement('span',{className:'cloud-dot '+(cloudStatus==='synced'?'green':cloudStatus==='saving'?'yellow':'gray')}),
           React.createElement('span',{className:'cloud-text'},
-            cloudStatus==='synced'?'☁️ Синхр.':cloudStatus==='saving'?'⏳ Зберіг...':cloudStatus==='connecting'?'🔄 З\'єдн...':'📴 Офлайн'
+            cloudStatus==='synced'?React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(CheckCircleIcon), 'Синхр.'):cloudStatus==='saving'?React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(RefreshIcon), 'Зберіг...'):cloudStatus==='connecting'?React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(WifiIcon), 'З\'єдн...'):React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(WifiOffIcon), 'Офлайн')
           )
         )
       ),
       tab==='calendar'&&renderCalendar(),
       tab==='history'&&renderHistory(),
-      tab==='settings'&&renderSettings()
+      tab==='settings'&&renderSettings(),
+      tab==='analytics'&&renderAnalytics()
     ),
     // bottom tabs
     React.createElement('div',{className:'tab-bar'},
       React.createElement('div',{className:'tab-bar-inner'},
         React.createElement('button',{className:'tab-btn'+(tab==='calendar'?' active':''),onClick:()=>setTab('calendar')},
-          React.createElement('span',{className:'tab-icon'},'📅'),React.createElement('span',null,'Календар')
+          React.createElement('span',{className:'tab-icon'},React.createElement(CalendarIcon)),React.createElement('span',null,'Календар')
         ),
         React.createElement('button',{className:'tab-btn'+(tab==='history'?' active':''),onClick:()=>setTab('history')},
-          React.createElement('span',{className:'tab-icon'},'📊'),React.createElement('span',null,'Історія')
+          React.createElement('span',{className:'tab-icon'},React.createElement(HistoryIcon)),React.createElement('span',null,'Історія')
+        ),
+        React.createElement('button',{className:'tab-btn'+(tab==='analytics'?' active':''),onClick:()=>setTab('analytics')},
+          React.createElement('span',{className:'tab-icon'},React.createElement(TrendingUpIcon)),React.createElement('span',null,'Аналітика')
         ),
         React.createElement('button',{className:'tab-btn'+(tab==='settings'?' active':''),onClick:()=>setTab('settings')},
-          React.createElement('span',{className:'tab-icon'},'⚙️'),React.createElement('span',null,'Налаштування')
+          React.createElement('span',{className:'tab-icon'},React.createElement(SettingsIcon)),React.createElement('span',null,'Налаштування')
         )
       )
     ),
     toast&&React.createElement('div',{key:toast,className:'toast'},toast),
       renderCustomPicker(),
+      renderAdminModal(),
       showTimerPopup && React.createElement('div',{className:'cc-overlay',onClick:()=>setShowTimerPopup(false)},
         React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation()},
           React.createElement('div',{className:'cc-header'},
-            React.createElement('div',{className:'cc-title'},'⏱️ Таймер відпочинку'),
-            React.createElement('button',{className:'stats-close',onClick:()=>setShowTimerPopup(false)},'×')
+            React.createElement('div',{className:'cc-title'},React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement(TimerIcon, {size:18}), 'Таймер відпочинку')),
+            React.createElement('button',{className:'stats-close',onClick:()=>setShowTimerPopup(false)},React.createElement(XIcon))
           ),
           React.createElement('div',{className:'timer-popup-grid'},
             React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(60)},'1 хв'),
