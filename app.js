@@ -109,7 +109,7 @@ const PlusIcon = ({size=16, className=''}) => React.createElement('svg', {width:
 const ArrowLeftIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 19, y1: 12, x2: 5, y2: 12}), React.createElement('polyline', {points: '12 19 5 12 12 5'}));
 const ArrowRightIcon = ({size=16, className=''}) => React.createElement('svg', {width: size, height: size, className, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round'}, React.createElement('line', {x1: 5, y1: 12, x2: 19, y2: 12}), React.createElement('polyline', {points: '12 5 19 12 12 19'}));
 
-const mkSet=()=>({reps:'',weight:'',rest:'',bw:false});
+const mkSet=()=>({reps:'',weight:'',bw:false});
 const mkEx=()=>({name:'',muscle:'',sets:[mkSet()]});
 const mkDay=()=>({muscle:'',exercises:[mkEx()]});
 
@@ -258,24 +258,6 @@ function App(){
     setTimerEnd(Date.now() + sec * 1000);
     setTimeLeft(sec);
     setShowTimerPopup(false);
-    
-    setDraft(p => {
-      if(!p) return p;
-      const d = JSON.parse(JSON.stringify(p));
-      let found = false;
-      for (let i = d.exercises.length - 1; i >= 0; i--) {
-        const ex = d.exercises[i];
-        for (let j = ex.sets.length - 1; j >= 0; j--) {
-          if (ex.sets[j].reps !== '') {
-            ex.sets[j].rest = sec;
-            found = true;
-            break;
-          }
-        }
-        if(found) break;
-      }
-      return d;
-    });
   }
 
   function fmtTimer(s) {
@@ -291,6 +273,25 @@ function App(){
   function selectDay(d){if(!d)return;setSelected(toKey(new Date(year,month,d)));setShowCalendarPopup(false)}
 
   // draft ops
+  function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
+  function setExMuscle(ei,m){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,muscle:e.muscle===m?'':m}:e)}))}
+  function setField(ei,si,f,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>j!==si?s:{...s,[f]:v})})}))}
+  function addSet(ei){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:[...e.sets,mkSet()]})}))}
+  function rmSet(ei,si){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.filter((_,j)=>j!==si)})}))}
+  function addEx(){setDraft(p=>({...p,exercises:[...p.exercises,mkEx()]}))}
+  function rmEx(ei){setDraft(p=>({...p,exercises:p.exercises.filter((_,i)=>i!==ei)}))}
+
+  function toggleBW(ei){
+    const uw=settings.userWeight;
+    if(!uw){flash('Вкажи свою вагу в налаштуваннях');setTab('settings');return}
+    setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>{
+      if(i!==ei) return e;
+      const allBw = e.sets.every(s=>s.bw);
+      const newBw = !allBw;
+      return {...e, sets: e.sets.map(s=>({...s, bw: newBw, weight: newBw ? uw : ''}))}
+    })}));
+  }
+
   function setMuscle(m){
     setDraft(p=>{
       const newM = p.muscle === m ? '' : m;
@@ -303,7 +304,7 @@ function App(){
           const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
           if(lastW){
             const newExs = lastW[1].exercises.map(ex=>({
-              name: ex.name, muscle: ex.muscle||'', sets: ex.sets.map(s=>({reps:'', weight:'', rest:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
+              name: ex.name, muscle: ex.muscle||'', sets: ex.sets.map(s=>({reps:'', weight:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
             }));
             return {...p, muscle: newM, exercises: newExs};
           } else {
@@ -316,25 +317,11 @@ function App(){
   }
   function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
   function setExMuscle(ei,m){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,muscle:e.muscle===m?'':m}:e)}))}
-  function setField(ei,si,f,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>j!==si?s:{...s,[f]:v})})}))}
-  function addSet(ei){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:[...e.sets,mkSet()]})}))}
-  function rmSet(ei,si){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.filter((_,j)=>j!==si)})}))}
-  function addEx(){setDraft(p=>({...p,exercises:[...p.exercises,mkEx()]}))}
-  function rmEx(ei){setDraft(p=>({...p,exercises:p.exercises.filter((_,i)=>i!==ei)}))}
 
-  function toggleBW(ei,si){
-    const uw=settings.userWeight;
-    if(!uw){flash('Вкажи свою вагу в налаштуваннях');setTab('settings');return}
-    setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>{
-      if(j!==si)return s;
-      const nb=!s.bw;
-      return{...s,bw:nb,weight:nb?uw:''};
-    })})}));
-  }
 
   function saveDay(){
     if(!draft)return;
-    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(settings.userWeight)||0:Number(s.weight)||0,rest:Number(s.rest)||0,bw:!!s.bw}))})).filter(e=>e.sets.length>0)};
+    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(settings.userWeight)||0:Number(s.weight)||0,bw:!!s.bw}))})).filter(e=>e.sets.length>0)};
     if(!cl.exercises.length)return;
     setData(p=>({...p,[selected]:cl}));
     flash('Збережено!');
@@ -469,22 +456,25 @@ function App(){
               },React.createElement('img',{src:mg.icon,className:'muscle-btn-icon',alt:mg.label})))
             ),
             React.createElement('div',{className:'sets-header'},
-              React.createElement('span',null,'Сет'),React.createElement('span',null,'Вага'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'Відп(с)'),React.createElement('span',null,'СВ'),React.createElement('span',null,'')
+              React.createElement('span',null,'Сет'),React.createElement('span',null,'Вага'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'')
             ),
+            // "Минулого разу" hint
+            (()=>{const ps=ex.sets.find(s=>s.prevWeight||s.prevReps);return ps?React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',fontStyle:'italic',marginBottom:'6px',paddingLeft:'2px'}},`Минулого разу: ${ps.prevWeight||'?'} кг × ${ps.prevReps||'?'}`):null})(),
+            // BW toggle at exercise level
+            React.createElement('button',{className:'bw-toggle-btn'+(ex.sets[0].bw?' active':''),onClick:()=>toggleBW(ei),style:{marginBottom:'8px',width:'100%',padding:'8px 12px',borderRadius:'10px',border:'1px solid '+(ex.sets[0].bw?'rgba(16,185,129,.3)':'var(--border)'),background:ex.sets[0].bw?'rgba(16,185,129,.12)':'var(--bg3)',color:ex.sets[0].bw?'var(--green2)':'var(--text3)',fontSize:'12px',fontWeight:'700',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',transition:'all .15s',fontFamily:'inherit'}},
+              React.createElement('span',null,'🏃'),ex.sets[0].bw?'Своя вага (увімкнено)':'Вправа зі своєю вагою'),
             ex.sets.map((s,si)=>{
               const isPR = !s.bw && s.weight && checkPR(ex.name, Number(s.weight), selected);
-              return React.createElement('div',{key:si,className:'set-row'},
+              return React.createElement('div',{key:si,className: si===0?'set-row set-row-first':'set-row'},
                 React.createElement('div',{className:'set-badge', style: isPR ? {boxShadow: '0 0 8px #10b981', color: '#10b981'} : {}}, si+1),
                 React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:s.prevWeight||'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
                 React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:s.prevReps||'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
-                React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:'-',value:s.rest||'',onChange:e=>setField(ei,si,'rest',e.target.value)}),
-                React.createElement('button',{className:'bw-btn'+(s.bw?' active':''),onClick:()=>toggleBW(ei,si)},'СВ'),
+                si>0?React.createElement('button',{className:'timer-btn-inline',onClick:()=>setShowTimerPopup(true)},React.createElement(TimerIcon,{size:14})):null,
                 ex.sets.length>1?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},React.createElement(XIcon)):React.createElement('div')
               );
             }),
             React.createElement('div',{className:'add-set-row'},
-              React.createElement('button',{className:'add-set-btn',onClick:()=>addSet(ei)},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(PlusIcon), 'Підхід')),
-              React.createElement('button',{className:'timer-btn',onClick:()=>setShowTimerPopup(true)},React.createElement(TimerIcon))
+              React.createElement('button',{className:'add-set-btn',onClick:()=>addSet(ei)},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(PlusIcon), 'Підхід'))
             )
           )),
           React.createElement('button',{className:'add-ex-btn',onClick:addEx},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(PlusIcon), 'Додати вправу')),
@@ -571,7 +561,7 @@ function App(){
             const currReps = reps[i];
             if (prevReps === 0) continue;
             const dropPct = (prevReps - currReps) / prevReps;
-            const restTime = Number(sets[i].rest) || 0;
+            const restTime = 0; // rest field removed from sets
             
             const pctVal = Math.round(dropPct * 100);
             if (pctVal > 0) dropsStrs.push(`${prevReps}→${currReps} (-${pctVal}%)`);
@@ -631,7 +621,6 @@ function App(){
                 React.createElement('th',null,'Сет'),
                 React.createElement('th',null,'Вага'),
                 React.createElement('th',null,'Повт.'),
-                React.createElement('th',null,'Відп.'),
                 React.createElement('th',null,'Об\'єм')
               )
             ),
@@ -640,7 +629,6 @@ function App(){
                 React.createElement('td',null,React.createElement('span',{className:'set-badge'},j+1)),
                 React.createElement('td',null,s.bw?'СВ ('+s.weight+'кг)':s.weight+' кг'),
                 React.createElement('td',null,s.reps),
-                React.createElement('td',null,s.rest ? s.rest + ' с' : '-'),
                 React.createElement('td',{className:'detail-vol'},(Number(s.reps)||0)*(Number(s.weight)||0)+' кг')
               ))
             )
