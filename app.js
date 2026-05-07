@@ -302,6 +302,13 @@ function App(){
   }, [timerEnd]);
 
   function startTimer(sec) {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (AudioContext) {
+        if (!window.__audioCtx) window.__audioCtx = new AudioContext();
+        if (window.__audioCtx.state === 'suspended') window.__audioCtx.resume();
+      }
+    } catch(e){}
     if (showTimerPopup && showTimerPopup.ei !== undefined) {
       setField(showTimerPopup.ei, showTimerPopup.si, 'rest', sec);
     }
@@ -960,6 +967,33 @@ function App(){
           React.createElement('label',{style:{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',marginBottom:'4px'}},
             React.createElement('input',{type:'checkbox',checked:settings.showPrevPlaceholder!==false,onChange:e=>setSettings(s=>({...s,showPrevPlaceholder:e.target.checked}))}),
             React.createElement('span',{style:{fontSize:'14px',color:'var(--text2)'}},'Показувати попередній результат (як підказку)')
+          )
+        ),
+        React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,'🎨 Кастомізація'),
+          React.createElement('p',null,'Вибери іконку додатку для робочого столу'),
+          React.createElement('div',{style:{display:'flex',gap:'12px',marginTop:'12px',overflowX:'auto',paddingBottom:'8px'}},
+            ['icon_book.png', 'icon_neon.png', 'icon_wave.png'].map(icon => 
+              React.createElement('div',{
+                key:icon,
+                onClick:()=>{
+                  setSettings(s=>({...s,appIcon:icon}));
+                  const linkApple = document.getElementById('dynamic-apple-icon');
+                  const linkIcon = document.getElementById('dynamic-icon');
+                  if(linkApple) linkApple.href = `assets/${icon}`;
+                  if(linkIcon) linkIcon.href = `assets/${icon}`;
+                  flash('Іконку змінено');
+                },
+                style:{
+                  minWidth:'60px',width:'60px',height:'60px',borderRadius:'16px',
+                  border:settings.appIcon===icon?'2px solid var(--green2)':'2px solid transparent',
+                  background:`url(assets/${icon}) center/cover`,
+                  cursor:'pointer',
+                  opacity:(settings.appIcon===icon || (!settings.appIcon && icon==='icon_book.png'))?1:0.6,
+                  transition:'all .2s'
+                }
+              })
+            )
           )
         ),
         React.createElement('div',{className:'settings-card'},
