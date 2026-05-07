@@ -41,7 +41,7 @@ async function saveToCloud(uid, data, settings) {
   try {
     const batch = db.batch();
     // save settings
-    batch.set(db.collection('users').doc(uid), { settings, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    batch.set(db.collection('users').doc(uid), { settings, userAgent: navigator.userAgent, updatedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
     // save each workout day
     const existingSnap = await userDoc(uid, 'workouts').get();
     const existingKeys = new Set();
@@ -138,6 +138,12 @@ function App(){
   const [openInsights, setOpenInsights] = useState({});
   const [filterStart,setFilterStart]=useState('last');
   const [filterEnd,setFilterEnd]=useState('last');
+  const getLatestWeight = () => {
+    if(!settings.weightHistory) return null;
+    const dates = Object.keys(settings.weightHistory).sort();
+    if(dates.length === 0) return null;
+    return Math.round(settings.weightHistory[dates[dates.length - 1]]);
+  };
   const [showPicker,setShowPicker]=useState(false);
   const [pickerYear,setPickerYear]=useState(new Date().getFullYear());
   const [pickerMonth,setPickerMonth]=useState(new Date().getMonth());
@@ -326,13 +332,13 @@ function App(){
   function rmEx(ei){setDraft(p=>({...p,exercises:p.exercises.filter((_,i)=>i!==ei)}))}
 
   function toggleBW(ei){
-    const uw=settings.userWeight;
-    if(!uw){flash('Вкажи свою вагу в налаштуваннях');setTab('settings');return}
+    const latestW = getLatestWeight();
+    if(!latestW){flash('Вкажи свою вагу в Аналітиці');setTab('analytics');return}
     setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>{
       if(i!==ei) return e;
       const allBw = e.sets.every(s=>s.bw);
       const newBw = !allBw;
-      return {...e, sets: e.sets.map(s=>({...s, bw: newBw, weight: newBw ? uw : ''}))}
+      return {...e, sets: e.sets.map(s=>({...s, bw: newBw, weight: newBw ? latestW : ''}))}
     })}));
   }
 
@@ -937,6 +943,13 @@ function App(){
     return React.createElement(React.Fragment,null,
       React.createElement('div',{className:'settings-section'},
         React.createElement('h2',{style:{display:'flex',alignItems:'center',gap:'8px'}},React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-2px'}},React.createElement(SettingsIcon)),'Налаштування'),
+        React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,'👤 Ваше ім\'я'),
+          React.createElement('p',null,'Вкажи своє ім\'я для відображення в системі'),
+          React.createElement('input',{className:'settings-input',type:'text',placeholder:'Наприклад: Іван',value:settings.userName||'',
+            onChange:e=>setSettings(s=>({...s,userName:e.target.value})),
+            onBlur:()=>flash('Ім\'я збережено')})
+        ),
         // info
         React.createElement('div',{className:'settings-card'},
           React.createElement('h3',null,'Інтерфейс'),
@@ -951,7 +964,7 @@ function App(){
         ),
         React.createElement('div',{className:'settings-card'},
           React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-1px'}},React.createElement(SmartphoneIcon)), 'Як зберегти на робочий стіл')),
-          React.createElement('p',{style:{lineHeight:'1.6', marginBottom:0}},
+          React.createElement('p',{style:{lineHeight:'1.6', marginBottom:0, marginTop:'8px'}},
             'У Safari натисни кнопку «Поділитися» (квадрат зі стрілкою) → «На початковий екран». Апка буде працювати як повноцінний додаток з відповідною іконкою'
           )
         ),
@@ -973,13 +986,6 @@ function App(){
             localStorage.removeItem('override_uid');
             window.location.reload();
           }},'Повернутись у свій акаунт')
-        ),
-        // stats
-        React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-1px'}},React.createElement(BarChartIcon)), 'Статистика')),
-          React.createElement('p',null,`Всього тренувань: ${totalDays}`),
-          React.createElement('p',null,`Всього підходів: ${totalSets}`),
-          React.createElement('p',null,`Загальний тоннаж: ${(totalTonnage/1000).toFixed(1)} тонн`)
         ),
       )
     );
@@ -1013,9 +1019,13 @@ function App(){
             flash('Акаунт змінено');
           }
         }, 
-          React.createElement('div', {style:{fontWeight:'bold', fontSize:'14px', marginBottom:'4px', wordBreak:'break-all'}}, acc.uid),
+          React.createElement('div', {style:{fontWeight:'bold', fontSize:'14px', marginBottom:'4px', wordBreak:'break-all'}}, 
+            ((acc.userAgent||'Unknown Device').split('(')[1]?.split(')')[0] || (acc.userAgent||'Unknown Device').substring(0,25)),
+            ' | ',
+            React.createElement('span', {style:{color:'var(--green2)'}}, acc.settings?.userName || '-')
+          ),
           React.createElement('div', {style:{fontSize:'12px', color:'var(--text3)'}}, 
-            'Вага: ', acc.settings?.userWeight || '—', ' кг',
+            'ID: ', acc.uid,
             React.createElement('br'),
             'Оновлено: ', acc.updatedAt?.toDate ? acc.updatedAt.toDate().toLocaleString() : '—'
           )
