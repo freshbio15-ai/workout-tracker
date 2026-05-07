@@ -1,16 +1,15 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
-// muscles are image-based, assigned per exercise
-const MUSCLE_EMOJIS = [
+const MUSCLES = [
   {id:'chest',icon:'assets/icon_chest.png',label:'Груди'},
   {id:'back',icon:'assets/icon_back.png',label:'Спина'},
   {id:'legs',icon:'assets/icon_legs.png',label:'Ноги'},
   {id:'shoulders',icon:'assets/icon_shoulders.png',label:'Плечі'},
   {id:'biceps',icon:'assets/icon_biceps.png',label:'Біцепс'},
-  {id:'triceps',icon:'assets/icon_triceps.png',label:'Трицепс'},
+  {id:'triceps',icon:'assets/icon_triceps.png',label:'Тріцепс'},
   {id:'abs',icon:'assets/icon_abs.png',label:'Прес'},
-  {id:'cardio',icon:'assets/icon_cardio.png',label:'Кардіо'},
 ];
+
 const STORAGE = 'gymbook-data';
 const SETTINGS_KEY = 'gymbook-settings';
 const WEEKDAYS = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
@@ -136,6 +135,7 @@ function App(){
   const [draft,setDraft]=useState(null);
   const [toast,setToast]=useState(null);
   const [historyDetail,setHistoryDetail]=useState(null); // key of workout to show detail
+  const [openInsights, setOpenInsights] = useState({});
   const [filterStart,setFilterStart]=useState('last');
   const [filterEnd,setFilterEnd]=useState('last');
   const [showPicker,setShowPicker]=useState(false);
@@ -143,6 +143,14 @@ function App(){
   const [pickerMonth,setPickerMonth]=useState(new Date().getMonth());
   const [pickerStart,setPickerStart]=useState('');
   const [pickerEnd,setPickerEnd]=useState('');
+  const [bwDate,setBwDate]=useState(todayKey());
+  const [bwValue,setBwValue]=useState('');
+  const [showBwPicker, setShowBwPicker] = useState(false);
+  const [adminTaps, setAdminTaps] = useState({logo: false, sync: false});
+  const [bwUnit, setBwUnit] = useState('кг');
+  const [bwPickerYear, setBwPickerYear] = useState(new Date().getFullYear());
+  const [weightPage, setWeightPage] = useState(0);
+  const [bwPickerMonth, setBwPickerMonth] = useState(new Date().getMonth());
   const [uid,setUid]=useState(null);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminAccounts, setAdminAccounts] = useState([]);
@@ -237,6 +245,38 @@ function App(){
   function flash(m){clearTimeout(tRef.current);setToast(m);tRef.current=setTimeout(()=>setToast(null),1800)}
 
   // ── Timer Logic ──────────────────────────────────────────────────
+  const playTick = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      if (!window.__audioCtx) window.__audioCtx = new AudioContext();
+      const ctx = window.__audioCtx;
+      if (ctx.state === 'suspended') ctx.resume();
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      // CS2 bomb tick approx: high pitched square wave, very short, sharp decay
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(2800, ctx.currentTime); // ~2.8kHz
+      
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
+      
+      // Add slight lowpass filter to remove harsh edge of pure square
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 5000;
+      
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start();
+      osc.stop(ctx.currentTime + 0.06);
+    } catch(e){}
+  };
+
   useEffect(()=>{
     if(!timerEnd) return;
     const tick = () => {
@@ -247,6 +287,7 @@ function App(){
         if ('vibrate' in navigator) navigator.vibrate([500, 200, 500, 200, 1000]);
       } else {
         setTimeLeft(remaining);
+        if (remaining <= 10) playTick();
       }
     };
     tick();
@@ -255,6 +296,9 @@ function App(){
   }, [timerEnd]);
 
   function startTimer(sec) {
+    if (showTimerPopup && showTimerPopup.ei !== undefined) {
+      setField(showTimerPopup.ei, showTimerPopup.si, 'rest', sec);
+    }
     setTimerEnd(Date.now() + sec * 1000);
     setTimeLeft(sec);
     setShowTimerPopup(false);
@@ -321,13 +365,13 @@ function App(){
 
   function saveDay(){
     if(!draft)return;
-    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(settings.userWeight)||0:Number(s.weight)||0,bw:!!s.bw}))})).filter(e=>e.sets.length>0)};
+    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(getLatestWeight())||0:Number(s.weight)||0,bw:!!s.bw,rest:Number(s.rest)||0}))})).filter(e=>e.sets.length>0)};
     if(!cl.exercises.length)return;
     setData(p=>({...p,[selected]:cl}));
     flash('Збережено!');
   }
 
-  function deleteDay(){setData(p=>{const n={...p};delete n[selected];return n});setDraft(mkDay());flash('Видалено')}
+  function deleteDay(k){const key = typeof k === 'string' ? k : selected; if(!window.confirm('Дійсно видалити це тренування?')) return; setData(p=>{const n={...p};delete n[key];return n});if(selected===key)setDraft(mkDay());setHistoryDetail(null);flash('Видалено')}
 
   // stats
   const sortedKeysData = Object.keys(data).sort();
@@ -365,7 +409,7 @@ function App(){
       w.exercises.forEach(ex=>{
         const m = ex.muscle || '';
         if(!m) return;
-        const mg = MUSCLE_EMOJIS.find(e=>e.id===m);
+        const mg = MUSCLES.find(e=>e.id===m);
         if(!mg) return; // skip old text-based data
         const key = mg.id;
         if(!map[key]) map[key]={icon:mg.icon,label:mg.label,days:0,sets:0,reps:0,tonnage:0};
@@ -382,7 +426,7 @@ function App(){
       w.exercises.forEach(ex=>{
         const m = ex.muscle || '';
         if(!m) return;
-        const mg = MUSCLE_EMOJIS.find(e=>e.id===m);
+        const mg = MUSCLES.find(e=>e.id===m);
         if(!mg) return;
         if(!seen.has(mg.id)){ seen.add(mg.id); if(map[mg.id]) map[mg.id].days++; }
       });
@@ -398,7 +442,7 @@ function App(){
         React.createElement('button', {
           className: 'date-trigger-btn',
           onClick: () => setShowCalendarPopup(true)
-        }, React.createElement(CalendarIcon, {size: 16}), ' ', selected === tKey ? 'Сьогодні' : fmtFull(selected), ' ▾')
+        }, React.createElement(CalendarIcon, {size: 16, style:{marginTop:'-2px'}}), React.createElement('span', null, selected === tKey ? 'Сьогодні ▾' : fmtFull(selected) + ' ▾'))
       ),
       // calendar modal
       showCalendarPopup && React.createElement('div',{className:'cc-overlay',onClick:()=>setShowCalendarPopup(false)},
@@ -417,7 +461,7 @@ function App(){
               if(k===tKey)cls+=' today';
               if(data[k])cls+=' has-workout';
               if(k===selected)cls+=' selected';
-              return React.createElement('div',{key:d,className:cls,onClick:()=>selectDay(d)},d,data[k]&&React.createElement('div',{className:'day-dot'}));
+              return React.createElement('div',{key:idx,className:cls,onClick:()=>selectDay(d)},d,data[k]&&React.createElement('div',{className:'day-dot '+(k<tKey?'past':'current')}));
             }))
           )
         )
@@ -436,7 +480,7 @@ function App(){
               React.createElement('span',{className:'chip-del',onClick:e=>{e.stopPropagation();setSettings(s=>({...s,muscles:s.muscles.filter(x=>x!==m)}));if(draft.muscle===m)setMuscle('')}},React.createElement(XIcon))
             )),
             React.createElement('div',{className:'add-muscle-wrap'},
-              React.createElement('input',{className:'add-muscle-input',placeholder:'Нова група…',value:newMuscle,onChange:e=>setNewMuscle(e.target.value),
+              React.createElement('input',{className:'add-muscle-input',placeholder:'Назва…',value:newMuscle,onChange:e=>setNewMuscle(e.target.value),
                 onKeyDown:e=>{if(e.key==='Enter'&&newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}
               }),
               React.createElement('button',{className:'add-muscle-btn',onClick:()=>{if(newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}},React.createElement(PlusIcon)))
@@ -448,29 +492,39 @@ function App(){
             ),
             // emoji muscle selector per exercise
             React.createElement('div',{className:'emoji-muscle-row'},
-              MUSCLE_EMOJIS.map(mg=>React.createElement('button',{
+              MUSCLES.map(mg=>React.createElement('button',{
                 key:mg.id,
                 className:'emoji-muscle-btn'+(ex.muscle===mg.id?' active':''),
                 onClick:()=>setExMuscle(ei,mg.id),
                 title:mg.label
               },React.createElement('img',{src:mg.icon,className:'muscle-btn-icon',alt:mg.label})))
             ),
-            React.createElement('div',{className:'sets-header'},
-              React.createElement('span',null,'Сет'),React.createElement('span',null,'Вага'),React.createElement('span',null,'Повт.'),React.createElement('span',null,'')
-            ),
             // "Минулого разу" hint
-            (()=>{const ps=ex.sets.find(s=>s.prevWeight||s.prevReps);return ps?React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',fontStyle:'italic',marginBottom:'6px',paddingLeft:'2px'}},`Минулого разу: ${ps.prevWeight||'?'} кг × ${ps.prevReps||'?'}`):null})(),
+            
             // BW toggle at exercise level
-            React.createElement('button',{className:'bw-toggle-btn'+(ex.sets[0].bw?' active':''),onClick:()=>toggleBW(ei),style:{marginBottom:'8px',width:'100%',padding:'8px 12px',borderRadius:'10px',border:'1px solid '+(ex.sets[0].bw?'rgba(16,185,129,.3)':'var(--border)'),background:ex.sets[0].bw?'rgba(16,185,129,.12)':'var(--bg3)',color:ex.sets[0].bw?'var(--green2)':'var(--text3)',fontSize:'12px',fontWeight:'700',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',transition:'all .15s',fontFamily:'inherit'}},
-              React.createElement('span',null,'🏃'),ex.sets[0].bw?'Своя вага (увімкнено)':'Вправа зі своєю вагою'),
+            settings.showBwToggle !== false && React.createElement('button',{className:'bw-toggle-btn'+(ex.sets[0].bw?' active':''),onClick:()=>toggleBW(ei),style:{marginBottom:'12px',width:'100%',padding:'8px 12px',borderRadius:'10px',border:'1px solid '+(ex.sets[0].bw?'rgba(16,185,129,.3)':'var(--border)'),background:ex.sets[0].bw?'rgba(16,185,129,.12)':'var(--bg3)',color:ex.sets[0].bw?'var(--green2)':'var(--text3)',fontSize:'12px',fontWeight:'700',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:'6px',transition:'all .15s',fontFamily:'inherit'}},
+              React.createElement('span',null,'🏃'),ex.sets[0].bw?'Своя вага (увімкнено)':'Вправа зі своєю вагою'
+            ),
+            React.createElement('div',{className:'sets-header'},
+              React.createElement('span', {style:{color:'var(--text2)', whiteSpace:'nowrap', overflow:'visible', position:'relative', zIndex:5, textTransform:'uppercase'}}, (() => {
+                const mg = MUSCLES.find(m => m.id === ex.muscle);
+                return mg ? mg.label : 'Сет';
+              })()),
+              React.createElement('span',null,'Вага'),
+              React.createElement('span',null,''),
+              React.createElement('span',null,'Повтори'),
+              React.createElement('span',null,''),
+              React.createElement('span',null,'')
+            ),
             ex.sets.map((s,si)=>{
               const isPR = !s.bw && s.weight && checkPR(ex.name, Number(s.weight), selected);
               return React.createElement('div',{key:si,className: si===0?'set-row set-row-first':'set-row'},
                 React.createElement('div',{className:'set-badge', style: isPR ? {boxShadow: '0 0 8px #10b981', color: '#10b981'} : {}}, si+1),
-                React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:s.prevWeight||'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
-                React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:s.prevReps||'12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
-                si>0?React.createElement('button',{className:'timer-btn-inline',onClick:()=>setShowTimerPopup(true)},React.createElement(TimerIcon,{size:14})):null,
-                ex.sets.length>1?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},React.createElement(XIcon)):React.createElement('div')
+                React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:(settings.showPrevPlaceholder !== false && s.prevWeight) ? s.prevWeight : 'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
+                React.createElement('div', {style:{color:'var(--text3)', fontSize:'12px', fontWeight:'700', textAlign:'center', marginTop:'2px'}}, '✕'),
+                React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:(settings.showPrevPlaceholder !== false && s.prevReps) ? s.prevReps : '12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
+                si>0?React.createElement('button',{className:'timer-btn-inline',onClick:()=>setShowTimerPopup({ei,si})},React.createElement(TimerIcon,{size:14})):React.createElement('div'),
+                si>0?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},React.createElement(XIcon)):React.createElement('div')
               );
             }),
             React.createElement('div',{className:'add-set-row'},
@@ -479,15 +533,8 @@ function App(){
           )),
           React.createElement('button',{className:'add-ex-btn',onClick:addEx},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(PlusIcon), 'Додати вправу')),
           React.createElement('button',{className:'save-btn',onClick:saveDay},hasData?React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}, React.createElement(SaveIcon), 'Оновити'):React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}, React.createElement(CheckIcon), 'Зберегти тренування')),
-            React.createElement('button',{className:'save-btn',style:{marginTop:'8px',background:'var(--bg3)',color:'var(--text1)'},onClick:()=>{
-              const tName = prompt('Введіть назву шаблону:');
-              if(tName){
-                const tpls = settings.templates || [];
-                setSettings({...settings, templates: [...tpls, {id: Date.now().toString(), name: tName, muscle: draft.muscle, exercises: draft.exercises}]});
-                flash('Шаблон збережено');
-              }
-            }},'Зберегти як шаблон'),
-          hasData&&React.createElement('button',{className:'del-day-btn',onClick:deleteDay},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(TrashIcon), 'Видалити'))
+            
+          null
         )
       )
     );
@@ -518,7 +565,7 @@ function App(){
       // total tonnage for this day
       React.createElement('div',{className:'tonnage-card'},
         React.createElement('div',{className:'tonnage-value'},ton>1000?(ton/1000).toFixed(1)+' т':ton+' кг'),
-        React.createElement('div',{className:'tonnage-label'},'Тоннаж за день'),
+        
         React.createElement('div',{className:'tonnage-row'},
           React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},w.exercises.length),React.createElement('div',{className:'tonnage-item-lbl'},'Вправ')),
           React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},w.exercises.reduce((a,e)=>a+e.sets.length,0)),React.createElement('div',{className:'tonnage-item-lbl'},'Підходів')),
@@ -526,20 +573,20 @@ function App(){
         )
       ),
       // per-exercise tonnage chart
-      React.createElement('div',{className:'section-label'},'Тоннаж по вправах'),
-      React.createElement('div',{className:'muscle-breakdown',style:{marginBottom:'14px'}},
+      
+      React.createElement('div',{className:'muscle-breakdown',style:{marginBottom:'24px'}},
         exTons.map((ex,i)=>
           React.createElement('div',{key:i,className:'mb-row'},
-            React.createElement('div',{className:'mb-label',style:{width:'90px',fontSize:'11px'}},ex.name),
+            React.createElement('div',{className:'mb-label'},ex.name),
             React.createElement('div',{className:'mb-bar-wrap'},
               React.createElement('div',{className:'mb-bar c'+i%8,style:{width:Math.max(Math.round(ex.ton/maxExTon*100),3)+'%'}})
             ),
-            React.createElement('div',{className:'mb-val',style:{width:'50px'}},ex.ton>1000?(ex.ton/1000).toFixed(1)+'т':ex.ton+'кг')
+            React.createElement('div',{className:'mb-val'},ex.ton>1000?(ex.ton/1000).toFixed(1)+'т':ex.ton+'кг')
           )
         )
       ),
       // detailed exercises
-      React.createElement('div',{className:'section-label'},'Деталі вправ'),
+      
       w.exercises.map((ex,i)=>{
         const exTon=calcExTonnage(ex);
         
@@ -612,7 +659,7 @@ function App(){
 
         return React.createElement('div',{key:i,className:'detail-ex-card'},
           React.createElement('div',{className:'detail-ex-header'},
-            React.createElement('div',{className:'detail-ex-name',style:{display:'flex',alignItems:'center',gap:'6px'}},(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?React.createElement('img',{src:mg.icon,className:'inline-muscle-icon'}):null})(),ex.name),
+            React.createElement('div',{className:'detail-ex-name',style:{display:'flex',alignItems:'center',gap:'6px'}},(()=>{const mg=MUSCLES.find(e=>e.id===(ex.muscle||''));return mg?React.createElement('img',{src:mg.icon,className:'inline-muscle-icon'}):null})(),ex.name),
             React.createElement('div',{className:'detail-ex-ton'},exTon>1000?(exTon/1000).toFixed(1)+' т':exTon+' кг')
           ),
           React.createElement('table',{className:'detail-table'},
@@ -620,7 +667,9 @@ function App(){
               React.createElement('tr',null,
                 React.createElement('th',null,'Сет'),
                 React.createElement('th',null,'Вага'),
+                React.createElement('th',null,''),
                 React.createElement('th',null,'Повт.'),
+                React.createElement('th',null,'Відп.'),
                 React.createElement('th',null,'Об\'єм')
               )
             ),
@@ -628,21 +677,35 @@ function App(){
               ex.sets.map((s,j)=>React.createElement('tr',{key:j},
                 React.createElement('td',null,React.createElement('span',{className:'set-badge'},j+1)),
                 React.createElement('td',null,s.bw?'СВ ('+s.weight+'кг)':s.weight+' кг'),
+                React.createElement('td',{style:{color:'var(--text3)', fontSize:'11px', textAlign:'center', fontWeight:'700', padding:'0'}},'✕'),
                 React.createElement('td',null,s.reps),
-                React.createElement('td',{className:'detail-vol'},(Number(s.reps)||0)*(Number(s.weight)||0)+' кг')
+                React.createElement('td',{style:{color:'var(--text2)'}},j===0 ? '' : (s.rest?fmtTimer(s.rest):'-')),
+                React.createElement('td',{className:'detail-vol'},Math.round((Number(s.reps)||0)*(Number(s.weight)||0))+' кг')
               ))
             )
           ),
-          insight && React.createElement('div',{className:'insight-box',style:{background:insight.bg,borderColor:insight.border}},
-            React.createElement('div',{className:'insight-icon'},React.createElement(LightbulbIcon)),
-            React.createElement('div',{className:'insight-content'},
-              React.createElement('h4',{className:'insight-title',style:{color:insight.color}},'Аналіз витривалості'),
-              React.createElement('p',{className:'insight-text'},
-                `Повторення впали на `,
-                React.createElement('strong',null,`${insight.pct}%`),
-                ` (з ${insight.max} до ${insight.min}). ${insight.msg}`,
-                React.createElement('br'),React.createElement('br'),
-                React.createElement(TimerIcon, {size:12, style:{marginRight:'4px'}}), React.createElement('strong',null,'Порада: '), insight.advice
+          insight && React.createElement('div', {style:{marginTop:'12px', display:'flex', flexDirection:'column', gap:'8px'}},
+            React.createElement('button', {
+              onClick: () => setOpenInsights(prev => ({...prev, [i]: !prev[i]})),
+              style: {
+                background: openInsights[i] ? insight.bg : 'transparent',
+                border: '1px solid ' + (openInsights[i] ? insight.border : 'var(--border)'),
+                color: openInsights[i] ? insight.color : 'var(--text2)',
+                padding: '6px 12px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '6px',
+                cursor: 'pointer', fontSize: '12px', fontWeight: '600', transition: 'all 0.2s', alignSelf: 'flex-start'
+              }
+            }, React.createElement(LightbulbIcon, {size:14}), openInsights[i] ? 'Приховати аналіз' : 'Аналіз витривалості'),
+            
+            openInsights[i] && React.createElement('div',{className:'insight-box',style:{background:insight.bg,borderColor:insight.border, marginTop:0}},
+              React.createElement('div',{className:'insight-content'},
+                React.createElement('h4',{className:'insight-title',style:{color:insight.color}},'Аналіз витривалості'),
+                React.createElement('p',{className:'insight-text'},
+                  `Повторення впали на `,
+                  React.createElement('strong',null,`${insight.pct}%`),
+                  ` (з ${insight.max} до ${insight.min}). ${insight.msg}`,
+                  React.createElement('br'),React.createElement('br'),
+                  React.createElement('strong',null,'Порада: '), insight.advice
+                )
               )
             )
           )
@@ -651,7 +714,8 @@ function App(){
       // edit button
       React.createElement('button',{className:'save-btn',style:{marginTop:'16px',background:'var(--bg4)',boxShadow:'none',border:'1px solid var(--border)'},onClick:()=>{
         const[y,m]=k.split('-').map(Number);setCalDate(new Date(y,m-1,1));setSelected(k);setTab('calendar');setHistoryDetail(null);
-      }},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(EditIcon), 'Редагувати тренування'))
+      }},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(EditIcon), 'Редагувати тренування')),
+      React.createElement('button',{className:'del-day-btn',style:{marginTop:'12px'},onClick:()=>deleteDay(k)},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(TrashIcon), 'Видалити'))
     );
   }
 
@@ -667,56 +731,68 @@ function App(){
     } else if(filterStart) filterText = 'З ' + fmtShort(filterStart);
     else if(filterEnd) filterText = 'До ' + fmtShort(filterEnd);
 
+    // Calculate max muscle tonnage for progress bars
+    const maxMuscleTonnage = muscleStats.length > 0 ? Math.max(...muscleStats.map(s => s[1].tonnage)) : 1;
+
     return React.createElement(React.Fragment,null,
       React.createElement('div',{className:'history-header'},
-        React.createElement('h2',{style:{display:'flex',alignItems:'center',gap:'8px'}},React.createElement(HistoryIcon),'Історія'),
-        React.createElement('div',{className:'history-filters'},
-          React.createElement('div',{className:'h-filter-label',onClick:()=>{
+        React.createElement('h2',{style:{display:'flex',alignItems:'center',gap:'8px'}},React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-2px'}},React.createElement(HistoryIcon)),'Щоденник'),
+        React.createElement('button', {
+          className: 'date-trigger-btn',
+          style: {padding: '8px 16px', fontSize: '13px'},
+          onClick: () => {
             setPickerStart(actualStart); setPickerEnd(actualEnd);
             setPickerYear(actualStart ? parseInt(actualStart.split('-')[0]) : new Date().getFullYear());
             setPickerMonth(actualStart ? parseInt(actualStart.split('-')[1])-1 : new Date().getMonth());
             setShowPicker(true);
-          }},filterText),
-          React.createElement('button',{className:'h-filter-btn',onClick:()=>{
-            setPickerStart(actualStart); setPickerEnd(actualEnd);
-            setPickerYear(actualStart ? parseInt(actualStart.split('-')[0]) : new Date().getFullYear());
-            setPickerMonth(actualStart ? parseInt(actualStart.split('-')[1])-1 : new Date().getMonth());
-            setShowPicker(true);
-          }},React.createElement(CalendarIcon, {size:16}))
-        )
+          }
+        }, React.createElement(CalendarIcon, {size: 14, style:{marginTop:'-1px'}}), filterText + ' ▾')
       ),
+      
+      // Dashboard Card
       React.createElement('div',{className:'tonnage-card'},
-        React.createElement('div',{className:'tonnage-value'},(totalTonnage/1000).toFixed(1)+' т'),
-        React.createElement('div',{className:'tonnage-label'},'Загальний тоннаж'),
+        React.createElement('div',{className:'tonnage-value'},(totalTonnage/1000).toFixed(1)+'т'),
+        React.createElement('div',{className:'tonnage-label'},'Загальний об\'єм'),
         React.createElement('div',{className:'tonnage-row'},
-          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},totalDays),React.createElement('div',{className:'tonnage-item-lbl'},'Тренувань')),
-          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},totalSets),React.createElement('div',{className:'tonnage-item-lbl'},'Підходів')),
-          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},thisWeek),React.createElement('div',{className:'tonnage-item-lbl'},'Цей тижд.'))
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},totalDays),React.createElement('div',{className:'tonnage-item-lbl'},'ТРЕНУВАНЬ')),
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},totalSets),React.createElement('div',{className:'tonnage-item-lbl'},'ПІДХОДІВ')),
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},thisWeek),React.createElement('div',{className:'tonnage-item-lbl'},'ЦЕЙ ТИЖД.'))
         )
       ),
+      
       history.length===0
         ?React.createElement('div',{className:'empty-state'},React.createElement('div',{className:'e-icon'},React.createElement(BookIcon)),React.createElement('h3',null,'Поки пусто'),React.createElement('p',null,'Записуй тренування в календарі'))
         :React.createElement(React.Fragment,null,
-          // per-muscle tonnage
+          
+          // Muscle Activity Bars
           muscleStats.length>0&&React.createElement(React.Fragment,null,
-            React.createElement('div',{className:'section-label'},'Тоннаж по групах м\'язів'),
-            React.createElement('div',{className:'muscle-tonnage-grid'},
-              muscleStats.map(([key,stat],i)=>{
-                const t=stat.tonnage;
-                return React.createElement('div',{key:key,className:'mt-card'},
-                  React.createElement('div',{className:'mt-emoji'},React.createElement('img',{src:stat.icon,className:'mt-icon',alt:stat.label})),
-                  React.createElement('div',{className:'mt-info'},
-                    React.createElement('div',{className:'mt-name'},stat.label),
-                    React.createElement('div',{className:'mt-tonnage'},t>1000?(t/1000).toFixed(1)+' т':t+' кг'),
-                    React.createElement('div',{className:'mt-details'},stat.sets+' підх. · '+stat.reps+' повт. · '+stat.days+' дн.')
+            React.createElement('div',{className:'section-label'},'Активність'),
+            React.createElement('div',{className:'muscle-tonnage-list'},
+              muscleStats.map(([key,stat])=>{
+                const t = stat.tonnage;
+                const pct = Math.max(5, Math.round((t / maxMuscleTonnage) * 100)); // min 5% for visibility
+                return React.createElement('div',{key:key,className:'mt-row'},
+                  React.createElement('div',{className:'mt-emoji'},React.createElement('img',{src:stat.icon, alt:stat.label})),
+                  React.createElement('div',{className:'mt-bar-container'},
+                    React.createElement('div',{className:'mt-bar-header'},
+                      React.createElement('span',{className:'mt-name'},stat.label),
+                      React.createElement('span',{className:'mt-tonnage'},t>1000?(t/1000).toFixed(1)+' т':t+' кг')
+                    ),
+                    React.createElement('div',{className:'mt-bar-bg'},
+                      React.createElement('div',{className:'mt-bar-fill', style:{width: pct + '%'}})
+                    )
                   )
                 );
               })
             )
           ),
-          React.createElement('div',{className:'section-label'},'Всі тренування ('+history.length+')'),
+          
+          // Workout Feed
+          React.createElement('div',{className:'section-label'},'Тренування ('+history.length+')'),
           React.createElement('div',{className:'history-list'},history.map(([k,w])=>{
-            const ton=calcTonnage(w);
+            const ton = calcTonnage(w);
+            const totalEx = w.exercises.length;
+            const totalSets = w.exercises.reduce((a,e)=>a+e.sets.length,0);
             return React.createElement('div',{key:k,className:'history-card',onClick:()=>setHistoryDetail(k)},
               React.createElement('div',{className:'hc-top'},
                 React.createElement('div',null,
@@ -726,15 +802,21 @@ function App(){
                 w.muscle&&React.createElement('span',{className:'hc-muscle'},w.muscle)
               ),
               React.createElement('div',{className:'hc-stats'},
-                React.createElement('span',{className:'hc-stat'},React.createElement('strong',null,w.exercises.length),' вправ'),
-                React.createElement('span',{className:'hc-stat'},React.createElement('strong',null,w.exercises.reduce((a,e)=>a+e.sets.length,0)),' підх.'),
-                React.createElement('span',{className:'hc-stat'},React.createElement('strong',null,ton>1000?(ton/1000).toFixed(1)+'т':ton+'кг'),' тоннаж')
+                React.createElement('span',{className:'hc-stat'}, React.createElement(ActivityIcon, {size:12, className:'hc-stat-icon'}), React.createElement('strong',null,totalEx),'вправ'),
+                React.createElement('span',{className:'hc-stat'}, React.createElement(RefreshIcon, {size:12, className:'hc-stat-icon'}), React.createElement('strong',null,totalSets),'підх.'),
+                React.createElement('span',{className:'hc-stat'}, React.createElement(WeightIcon, {size:12, className:'hc-stat-icon'}), React.createElement('strong',null,ton>1000?(ton/1000).toFixed(1)+'т':ton+'кг'))
               ),
               React.createElement('div',{className:'hc-exercises'},w.exercises.map((ex,i)=>{
-                const et=calcExTonnage(ex);
+                const et = calcExTonnage(ex);
+                const mg = MUSCLES.find(e=>e.id===(ex.muscle||''));
                 return React.createElement('div',{key:i,className:'hc-ex'},
-                  React.createElement('strong',{style:{display:'inline-flex',alignItems:'center',gap:'4px'}},(()=>{const mg=MUSCLE_EMOJIS.find(e=>e.id===(ex.muscle||''));return mg?React.createElement('img',{src:mg.icon,className:'inline-muscle-icon'}):null})(),ex.name),
-                  ` — ${ex.sets.length} підх. · ${et>1000?(et/1000).toFixed(1)+'т':et+'кг'}`+(ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
+                  React.createElement('div',{className:'hc-ex-left'},
+                    mg&&React.createElement('img',{src:mg.icon, style:{width:'14px',height:'14px'}}),
+                    ex.name + (ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
+                  ),
+                  React.createElement('div',{className:'hc-ex-right'},
+                    `${ex.sets.length} х ${et>1000?(et/1000).toFixed(1)+'т':et+'кг'}`
+                  )
                 );
               }))
             );
@@ -745,39 +827,107 @@ function App(){
 
   // ─── SETTINGS TAB ──────────────────────────────────────────────
   
-  function renderAnalytics() {
-    // Calculate total volume per day for last 10 days
-    const days = Object.keys(data).sort().slice(-10);
-    const chartData = days.map(d => {
-      let vol = 0;
-      data[d].exercises.forEach(ex => {
-        ex.sets.forEach(s => {
-          if (!s.bw) vol += (s.weight||0) * (s.reps||0);
-        });
-      });
-      return { date: d, vol: vol };
-    });
-
-    const maxVol = Math.max(...chartData.map(d => d.vol), 1); // prevent div by 0
+    function renderAnalytics() {
+    // Weight Tracker logic
+    const weightHistory = settings.weightHistory || {};
+    const allWeightKeys = Object.keys(weightHistory).sort();
+    const totalWPages = Math.ceil(allWeightKeys.length / 10);
+    const remainder = allWeightKeys.length % 10 || 10;
+    let wEnd, wStart;
+    if (weightPage === 0) {
+      wEnd = allWeightKeys.length;
+      wStart = Math.max(0, allWeightKeys.length - remainder);
+    } else {
+      wEnd = allWeightKeys.length - remainder - (weightPage - 1) * 10;
+      wStart = Math.max(0, wEnd - 10);
+    }
+    const weightKeys = allWeightKeys.slice(wStart, wEnd);
+    const weightChartData = weightKeys.map(k => ({ date: k, weight: bwUnit === 'lbs' ? (weightHistory[k] / 0.453592) : weightHistory[k] }));
+    const wMin = weightChartData.length > 0 ? Math.min(...weightChartData.map(d => d.weight)) : 0;
+    const wMax = weightChartData.length > 0 ? Math.max(...weightChartData.map(d => d.weight)) : 0;
+    const wRange = (wMax - wMin) || 1;
+    const wBase = Math.max(0, wMin - (wRange * 0.5));
 
     return React.createElement(React.Fragment, null,
       React.createElement('div', {className: 'analytics-container'},
-        React.createElement('h2', {style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'16px'}}, React.createElement(TrendingUpIcon), 'Аналітика'),
+        React.createElement('h2', {style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'16px'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-2px'}},React.createElement(TrendingUpIcon)), 'Аналітика'),
         
+        // Weight tracker section
         React.createElement('div', {className: 'chart-wrapper'},
-          React.createElement('div', {className: 'chart-title'}, 'Тоннаж за останні 10 тренувань (кг)'),
-          chartData.length > 0 ? React.createElement('div', {className: 'chart-container'},
-            chartData.map((d, i) => {
-              const h = Math.round((d.vol / maxVol) * 100);
-              return React.createElement('div', {key: i, className: 'chart-col'},
-                React.createElement('div', {className: 'chart-value'}, d.vol > 0 ? d.vol : ''),
-                React.createElement('div', {className: 'chart-bar', style: {height: '100%'}},
-                  React.createElement('div', {className: 'chart-bar-fill', style: {height: h + '%'}})
+          React.createElement('div', {className: 'chart-title', style:{display:'flex',justifyContent:'space-between',alignItems:'center', flexWrap:'wrap', gap:'12px', paddingBottom:'12px'}}, 
+            React.createElement('div', {style:{display:'flex', justifyContent:'space-between', width:'100%', alignItems:'center'}},
+              `Динаміка власної ваги (${bwUnit})`,
+              React.createElement('button', {onClick:()=>{if(confirm('Видалити всю історію ваги?')){setSettings(s=>({...s, weightHistory:{}})); setWeightPage(0); flash('Історію очищено');}}, style:{background:'none',border:'none',color:'var(--red)',fontSize:'12px',cursor:'pointer'}}, 'Стерти все')
+            ),
+            React.createElement('div', {style:{display:'flex', gap:'8px', width:'100%', alignItems:'flex-end'}},
+              React.createElement('button', {
+                className: 'date-trigger-btn',
+                style: {flex: 1, height: '36px', padding: '0 12px', fontSize: '13px', margin: 0, boxShadow: 'none'},
+                onClick: () => setShowBwPicker(true)
+              }, React.createElement(CalendarIcon, {size: 14, style:{marginTop:'-1px'}}), fmtShort(bwDate) + ' ▾'),
+              React.createElement('div', {style:{flex:'1', display:'flex', flexDirection:'column', gap:'6px'}},
+                React.createElement('div', {style:{display:'flex', gap:'4px', justifyContent:'center'}},
+                  React.createElement('button', {onClick:()=>setBwUnit('кг'), style:{padding:'2px 8px', fontSize:'10px', borderRadius:'4px', fontWeight:'bold', background: bwUnit==='кг'?'rgba(16,185,129,.15)':'var(--bg3)', color: bwUnit==='кг'?'var(--green2)':'var(--text3)', border:'1px solid '+(bwUnit==='кг'?'rgba(16,185,129,.3)':'var(--border)')}}, 'кг'),
+                  React.createElement('button', {onClick:()=>setBwUnit('lbs'), style:{padding:'2px 8px', fontSize:'10px', borderRadius:'4px', fontWeight:'bold', background: bwUnit==='lbs'?'rgba(16,185,129,.15)':'var(--bg3)', color: bwUnit==='lbs'?'var(--green2)':'var(--text3)', border:'1px solid '+(bwUnit==='lbs'?'rgba(16,185,129,.3)':'var(--border)')}}, 'lbs')
                 ),
-                React.createElement('div', {className: 'chart-label'}, fmtShort(d.date))
-              );
-            })
-          ) : React.createElement('div', {style:{textAlign:'center',color:'var(--text3)'}}, 'Немає даних')
+                React.createElement('input', {type:'number', step:'0.001', className:'set-input', style:{padding:'0', margin:0, height:'36px'}, placeholder:bwUnit==='кг'?'75.5':'165.0', value:bwValue, onChange:e=>setBwValue(e.target.value)})
+              ),
+              React.createElement('button', {className:'bw-toggle-btn active', style:{padding:'0 12px', margin:0, height:'36px', borderRadius:'var(--radius-xs)', background:'rgba(16,185,129,.15)', border:'1px solid rgba(16,185,129,.3)', color:'var(--green2)', fontSize:'12px', fontWeight:'700', cursor:'pointer'}, onClick:()=>{
+                let val = Number(bwValue);
+                if(bwDate && val > 0) {
+                  if(bwUnit === 'lbs') val = val * 0.453592; // convert lbs to kg
+                  setSettings(s => ({...s, weightHistory: {...(s.weightHistory||{}), [bwDate]: val}})); setWeightPage(0);
+                  setBwValue('');
+                  flash('Вагу збережено');
+                }
+              }}, 'Додати')
+            )
+          ),
+          weightChartData.length > 0 ? React.createElement(React.Fragment, null, 
+            React.createElement('div', {className: 'chart-container', style:{height:'140px', marginBottom:'8px'}},
+              weightChartData.map((d, i) => {
+                const h = Math.max(5, Math.round(((d.weight - wBase) / (wMax - wBase + wRange*0.2)) * 100));
+                
+                const gIdx = allWeightKeys.indexOf(d.date);
+                const pDate = gIdx > 0 ? allWeightKeys[gIdx - 1] : null;
+                const pW = pDate ? (bwUnit === 'lbs' ? weightHistory[pDate]/0.453592 : weightHistory[pDate]) : d.weight;
+                
+                const isDrop = d.weight < pW;
+                const isGain = d.weight > pW;
+                const barColor = isDrop ? 'linear-gradient(to top, var(--green), var(--red))' : (isGain ? 'linear-gradient(to top, var(--red), var(--green2))' : 'linear-gradient(to top, rgba(16,185,129,0.4), var(--green2))');
+                const glowColor = isDrop ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)';
+                const valColor = isDrop ? 'var(--red)' : (isGain ? 'var(--green2)' : 'var(--text3)');
+                const displayWeight = d.weight % 1 === 0 ? d.weight : parseFloat(d.weight.toFixed(2));
+                return React.createElement('div', {key: i, className: 'chart-col', style:{cursor:'pointer'}, onClick:()=>{
+                  const nw = prompt(`Змінити вагу за ${fmtShort(d.date)} (${bwUnit})?
+Введіть нове значення (або залиште порожнім щоб видалити):`, d.weight % 1 === 0 ? d.weight : d.weight.toFixed(3));
+                  if (nw !== null) {
+                    if (nw.trim() === '') {
+                      setSettings(s => { const ns = {...s, weightHistory: {...(s.weightHistory||{})}}; delete ns.weightHistory[d.date]; return ns; });
+                      flash('Запис видалено');
+                    } else {
+                      let val = Number(nw);
+                      if (!isNaN(val) && val > 0) {
+                        if (bwUnit === 'lbs') val = val * 0.453592;
+                        setSettings(s => ({...s, weightHistory: {...(s.weightHistory||{}), [d.date]: val}}));
+                        flash('Запис оновлено');
+                      }
+                    }
+                  }
+                }},
+                  React.createElement('div', {className: 'chart-value', style:{color:valColor, fontSize:'9px', top:'-18px', whiteSpace:'nowrap'}}, displayWeight),
+                  React.createElement('div', {className: 'chart-bar', style: {height: '100%'}},
+                    React.createElement('div', {className: 'chart-bar-fill', style: {height: h + '%', background: barColor, boxShadow: `0 0 10px ${glowColor}`}})
+                  ),
+                  React.createElement('div', {className: 'chart-label'}, fmtShort(d.date))
+                );
+              })
+            ),
+            allWeightKeys.length > 10 && React.createElement('div', {style:{display:'flex', justifyContent:'center', gap:'12px', marginTop:'8px'}},
+              React.createElement('button', {onClick:()=>setWeightPage(p=>Math.min(p+1, totalWPages-1)), disabled: weightPage >= totalWPages-1, style:{background:'var(--bg3)', border:'1px solid var(--border)', color: weightPage >= totalWPages-1 ? 'var(--text3)' : 'var(--text1)', padding:'6px 16px', borderRadius:'20px', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px', fontSize:'11px', fontWeight:'700'}}, React.createElement(ArrowLeftIcon, {size:14}), 'Назад'),
+              React.createElement('button', {onClick:()=>setWeightPage(p=>Math.max(0, p-1)), disabled: weightPage === 0, style:{background:'var(--bg3)', border:'1px solid var(--border)', color: weightPage === 0 ? 'var(--text3)' : 'var(--text1)', padding:'6px 16px', borderRadius:'20px', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px', fontSize:'11px', fontWeight:'700'}}, 'Вперед', React.createElement(ArrowRightIcon, {size:14}))
+            )
+          ) : React.createElement('div', {style:{textAlign:'center',color:'var(--text3)'}}, 'Додайте свою вагу для відображення графіка')
         )
       )
     );
@@ -786,27 +936,27 @@ function App(){
   function renderSettings(){
     return React.createElement(React.Fragment,null,
       React.createElement('div',{className:'settings-section'},
-        React.createElement('h2',{style:{display:'flex',alignItems:'center',gap:'8px'}},React.createElement(SettingsIcon),'Налаштування'),
-        // weight card
-        React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement(WeightIcon), 'Власна вага')),
-          React.createElement('p',null,'Ця вага буде автоматично підставлена, коли ти натиснеш кнопку «СВ» біля підходу'),
-          React.createElement('input',{className:'settings-input',type:'number',inputMode:'decimal',placeholder:'Наприклад 75',value:settings.userWeight,
-            onChange:e=>setSettings(s=>({...s,userWeight:e.target.value}))}),
-          settings.userWeight&&React.createElement('div',{className:'weight-display'},
-            React.createElement('div',{style:{fontSize:'14px',color:'var(--green2)',fontWeight:700}},settings.userWeight+' кг'),
-            React.createElement('span',null,'— збережено')
-          )
-        ),
+        React.createElement('h2',{style:{display:'flex',alignItems:'center',gap:'8px'}},React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-2px'}},React.createElement(SettingsIcon)),'Налаштування'),
         // info
         React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement(SmartphoneIcon), 'Як зберегти на робочий стіл')),
-          React.createElement('p',{style:{lineHeight:'1.6'}},
+          React.createElement('h3',null,'Інтерфейс'),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',marginBottom:'12px'}},
+            React.createElement('input',{type:'checkbox',checked:settings.showBwToggle!==false,onChange:e=>setSettings(s=>({...s,showBwToggle:e.target.checked}))}),
+            React.createElement('span',{style:{fontSize:'14px',color:'var(--text2)'}},'Кнопка «Вправа зі своєю вагою»')
+          ),
+          React.createElement('label',{style:{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',marginBottom:'4px'}},
+            React.createElement('input',{type:'checkbox',checked:settings.showPrevPlaceholder!==false,onChange:e=>setSettings(s=>({...s,showPrevPlaceholder:e.target.checked}))}),
+            React.createElement('span',{style:{fontSize:'14px',color:'var(--text2)'}},'Показувати попередній результат (як підказку)')
+          )
+        ),
+        React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-1px'}},React.createElement(SmartphoneIcon)), 'Як зберегти на робочий стіл')),
+          React.createElement('p',{style:{lineHeight:'1.6', marginBottom:0}},
             'У Safari натисни кнопку «Поділитися» (квадрат зі стрілкою) → «На початковий екран». Апка буде працювати як повноцінний додаток з відповідною іконкою'
           )
         ),
         // admin panel
-        (settings.userWeight === '175' || localStorage.getItem('override_uid')) && React.createElement('div',{className:'settings-card'},
+        ((adminTaps.logo && adminTaps.sync) || localStorage.getItem('override_uid')) && React.createElement('div',{className:'settings-card'},
           React.createElement('h3',null,'👑 Admin Panel'),
           React.createElement('button',{className:'save-btn',onClick:async()=>{
             try {
@@ -826,7 +976,7 @@ function App(){
         ),
         // stats
         React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement(BarChartIcon), 'Статистика')),
+          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-1px'}},React.createElement(BarChartIcon)), 'Статистика')),
           React.createElement('p',null,`Всього тренувань: ${totalDays}`),
           React.createElement('p',null,`Всього підходів: ${totalSets}`),
           React.createElement('p',null,`Загальний тоннаж: ${(totalTonnage/1000).toFixed(1)} тонн`)
@@ -874,6 +1024,39 @@ function App(){
     );
   }
 
+    function renderBwPicker(){
+    if(!showBwPicker) return null;
+    const grid = buildGrid(bwPickerYear, bwPickerMonth);
+    
+    return React.createElement('div',{className:'cc-overlay',onClick:()=>setShowBwPicker(false)},
+      React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),style:{padding:0,overflow:'hidden'}},
+        React.createElement('div',{className:'calendar-wrap',style:{marginBottom:0,border:'none',borderRadius:0}},
+          React.createElement('div',{className:'cal-nav'},
+            React.createElement('button',{className:'cal-arrow',onClick:()=>setBwPickerMonth(m=>{if(m===0){setBwPickerYear(y=>y-1);return 11}return m-1})},React.createElement(ArrowLeftIcon)),
+            React.createElement('span',{className:'cal-month'},`${MONTHS[bwPickerMonth]} ${bwPickerYear}`),
+            React.createElement('button',{className:'cal-arrow',onClick:()=>setBwPickerMonth(m=>{if(m===11){setBwPickerYear(y=>y+1);return 0}return m+1})},React.createElement(ArrowRightIcon))
+          ),
+          React.createElement('div',{className:'cal-weekdays'},
+            WEEKDAYS.map(w=>React.createElement('div',{key:w,className:'cal-wd'},w))
+          ),
+          React.createElement('div',{className:'cal-grid'},
+            grid.map((d,i)=>{
+              if(!d) return React.createElement('div',{key:i,className:'cal-day empty'});
+              const k = toKey(new Date(bwPickerYear, bwPickerMonth, d));
+              const isSel = k === bwDate;
+              const hasData = settings.weightHistory && settings.weightHistory[k];
+              const cls = 'cal-day' + (isSel?' selected':'') + (k===todayKey()?' today':'') + (hasData?' has-workout':'');
+              return React.createElement('div',{key:i,className:cls,onClick:()=>{
+                setBwDate(k);
+                setShowBwPicker(false);
+              }},d,hasData&&React.createElement('div',{className:'day-dot '+(k<todayKey()?'past':'current')}));
+            })
+          )
+        )
+      )
+    );
+  }
+
   function renderCustomPicker(){
     if(!showPicker) return null;
     const grid = buildGrid(pickerYear, pickerMonth);
@@ -891,31 +1074,34 @@ function App(){
     }
 
     return React.createElement('div',{className:'cc-overlay',onClick:()=>setShowPicker(false)},
-      React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation()},
-        React.createElement('div',{className:'cc-header'},
-          React.createElement('div',{className:'cc-title'},`${MONTHS[pickerMonth]} ${pickerYear}`),
-          React.createElement('div',{className:'cc-nav'},
-            React.createElement('button',{className:'cc-btn',onClick:()=>setPickerMonth(m=>{if(m===0){setPickerYear(y=>y-1);return 11}return m-1})},React.createElement(ArrowLeftIcon)),
-            React.createElement('button',{className:'cc-btn',onClick:()=>setPickerMonth(m=>{if(m===11){setPickerYear(y=>y+1);return 0}return m+1})},React.createElement(ArrowRightIcon))
+      React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),style:{padding:0,overflow:'hidden'}},
+        React.createElement('div',{className:'calendar-wrap',style:{marginBottom:0,border:'none',borderRadius:0}},
+          React.createElement('div',{className:'cal-nav'},
+            React.createElement('button',{className:'cal-arrow',onClick:()=>setPickerMonth(m=>{if(m===0){setPickerYear(y=>y-1);return 11}return m-1})},React.createElement(ArrowLeftIcon)),
+            React.createElement('span',{className:'cal-month'},`${MONTHS[pickerMonth]} ${pickerYear}`),
+            React.createElement('button',{className:'cal-arrow',onClick:()=>setPickerMonth(m=>{if(m===11){setPickerYear(y=>y+1);return 0}return m+1})},React.createElement(ArrowRightIcon))
+          ),
+          React.createElement('div',{className:'cal-weekdays'},
+            WEEKDAYS.map(w=>React.createElement('div',{key:w,className:'cal-wd'},w))
+          ),
+          React.createElement('div',{className:'cal-grid'},
+            grid.map((d,idx)=>{
+              if(!d) return React.createElement('div',{key:idx,className:'cal-day empty'});
+              const k = toKey(new Date(pickerYear, pickerMonth, d));
+              let cls = 'cal-day';
+              if(k===todayKey()) cls+=' today';
+              if(data[k]) cls += ' has-workout';
+              if(k === pickerStart || k === pickerEnd) cls += ' selected';
+              if(k === pickerStart) cls += ' range-start';
+              if(k === pickerEnd) cls += ' range-end';
+              if(pickerStart && pickerEnd && k > pickerStart && k < pickerEnd) cls += ' in-range';
+              return React.createElement('div',{key:idx,className:cls,onClick:()=>handleDayClick(d)},d,data[k]&&React.createElement('div',{className:'day-dot '+(k<todayKey()?'past':'current')}));
+            })
+          ),
+          React.createElement('div',{className:'cc-footer', style:{marginTop:'20px'}},
+            React.createElement('button',{className:'cc-action secondary',onClick:()=>{setFilterStart('all');setFilterEnd('all');setShowPicker(false)}},'За весь час'),
+            React.createElement('button',{className:'cc-action primary',onClick:()=>{setFilterStart(pickerStart);setFilterEnd(pickerEnd);setShowPicker(false)}},'Застосувати')
           )
-        ),
-        React.createElement('div',{className:'cc-grid'},
-          WEEKDAYS.map(w=>React.createElement('div',{key:w,className:'cc-wd'},w)),
-          grid.map((d,i)=>{
-            if(!d) return React.createElement('div',{key:i,className:'cc-day empty'});
-            const k = toKey(new Date(pickerYear, pickerMonth, d));
-            let cls = 'cc-day';
-            if(data[k]) cls += ' has-data';
-            if(k === pickerStart || k === pickerEnd) cls += ' selected';
-            if(k === pickerStart) cls += ' range-start';
-            if(k === pickerEnd) cls += ' range-end';
-            if(pickerStart && pickerEnd && k > pickerStart && k < pickerEnd) cls += ' in-range';
-            return React.createElement('div',{key:i,className:cls,onClick:()=>handleDayClick(d)},d);
-          })
-        ),
-        React.createElement('div',{className:'cc-footer'},
-          React.createElement('button',{className:'cc-action secondary',onClick:()=>{setFilterStart('all');setFilterEnd('all');setShowPicker(false)}},'За весь час'),
-          React.createElement('button',{className:'cc-action primary',onClick:()=>{setFilterStart(pickerStart);setFilterEnd(pickerEnd);setShowPicker(false)}},'Застосувати')
         )
       )
     );
@@ -931,13 +1117,13 @@ function App(){
         )
       ) : React.createElement('div',{className:'app-header'},
         React.createElement('div',{className:'app-logo'},
-          React.createElement('div',{className:'logo-icon'},React.createElement(ActivityIcon, {size: 20})),
+          React.createElement('div',{className:'logo-icon', onClick:()=>setAdminTaps(p=>({...p, logo: true})), style:{cursor:'pointer'}},React.createElement(ActivityIcon, {size: 20})),
           React.createElement('div',{className:'logo-text'},
             React.createElement('h1',null,'Gym Notebook'),
             React.createElement('p',null,'Твій щоденник тренувань')
           )
         ),
-        React.createElement('div',{className:'cloud-status'},
+        React.createElement('div',{className:'cloud-status', style:{cursor:tab==='settings'?'pointer':'default'}, onClick:()=>{if(tab==='settings'&&adminTaps.logo)setAdminTaps(p=>({...p,sync:true}))}},
           React.createElement('span',{className:'cloud-dot '+(cloudStatus==='synced'?'green':cloudStatus==='saving'?'yellow':'gray')}),
           React.createElement('span',{className:'cloud-text'},
             cloudStatus==='synced'?React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(CheckCircleIcon), 'Синхр.'):cloudStatus==='saving'?React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(RefreshIcon), 'Зберіг...'):cloudStatus==='connecting'?React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(WifiIcon), 'З\'єдн...'):React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'4px'}}, React.createElement(WifiOffIcon), 'Офлайн')
@@ -956,7 +1142,7 @@ function App(){
           React.createElement('span',{className:'tab-icon'},React.createElement(CalendarIcon)),React.createElement('span',null,'Календар')
         ),
         React.createElement('button',{className:'tab-btn'+(tab==='history'?' active':''),onClick:()=>setTab('history')},
-          React.createElement('span',{className:'tab-icon'},React.createElement(HistoryIcon)),React.createElement('span',null,'Історія')
+          React.createElement('span',{className:'tab-icon'},React.createElement(HistoryIcon)),React.createElement('span',null,'Щоденник')
         ),
         React.createElement('button',{className:'tab-btn'+(tab==='analytics'?' active':''),onClick:()=>setTab('analytics')},
           React.createElement('span',{className:'tab-icon'},React.createElement(TrendingUpIcon)),React.createElement('span',null,'Аналітика')
@@ -968,7 +1154,9 @@ function App(){
     ),
     toast&&React.createElement('div',{key:toast,className:'toast'},toast),
       renderCustomPicker(),
+      renderBwPicker(),
       renderAdminModal(),
+null,
       showTimerPopup && React.createElement('div',{className:'cc-overlay',onClick:()=>setShowTimerPopup(false)},
         React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation()},
           React.createElement('div',{className:'cc-header'},
