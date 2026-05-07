@@ -969,38 +969,14 @@ function App(){
             React.createElement('span',{style:{fontSize:'14px',color:'var(--text2)'}},'Показувати попередній результат (як підказку)')
           )
         ),
-        React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,'🎨 Кастомізація'),
-          React.createElement('p',null,'Вибери іконку додатку для робочого столу'),
-          React.createElement('div',{style:{display:'flex',gap:'12px',marginTop:'12px',overflowX:'auto',paddingBottom:'8px'}},
-            ['icon_book.png', 'icon_neon.png', 'icon_wave.png'].map(icon => 
-              React.createElement('div',{
-                key:icon,
-                onClick:()=>{
-                  setSettings(s=>({...s,appIcon:icon}));
-                  const linkApple = document.getElementById('dynamic-apple-icon');
-                  const linkIcon = document.getElementById('dynamic-icon');
-                  if(linkApple) linkApple.href = `assets/${icon}`;
-                  if(linkIcon) linkIcon.href = `assets/${icon}`;
-                  flash('Іконку змінено');
-                },
-                style:{
-                  minWidth:'60px',width:'60px',height:'60px',borderRadius:'16px',
-                  border:settings.appIcon===icon?'2px solid var(--green2)':'2px solid transparent',
-                  background:`url(assets/${icon}) center/cover`,
-                  cursor:'pointer',
-                  opacity:(settings.appIcon===icon || (!settings.appIcon && icon==='icon_book.png'))?1:0.6,
-                  transition:'all .2s'
-                }
-              })
+        React.createElement('div',{className:'settings-card', style:{display:'flex',gap:'16px',alignItems:'center'}},
+          React.createElement('div', {style:{flex:1}},
+            React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-1px'}},React.createElement(SmartphoneIcon)), 'На робочий стіл')),
+            React.createElement('p',{style:{lineHeight:'1.5', marginBottom:0, marginTop:'8px', fontSize:'13px'}},
+              'У Safari натисни «Поділитися» (квадрат зі стрілкою) → «На початковий екран». Апка працюватиме як повноцінний додаток з цією іконкою.'
             )
-          )
-        ),
-        React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-1px'}},React.createElement(SmartphoneIcon)), 'Як зберегти на робочий стіл')),
-          React.createElement('p',{style:{lineHeight:'1.6', marginBottom:0, marginTop:'8px'}},
-            'У Safari натисни кнопку «Поділитися» (квадрат зі стрілкою) → «На початковий екран». Апка буде працювати як повноцінний додаток з відповідною іконкою'
-          )
+          ),
+          React.createElement('img', {src:'assets/icon_book.png', style:{width:'64px',height:'64px',borderRadius:'16px',boxShadow:'0 4px 12px rgba(0,0,0,0.3)', flexShrink:0}})
         ),
         // admin panel
         ((adminTaps.logo && adminTaps.sync) || localStorage.getItem('override_uid')) && React.createElement('div',{className:'settings-card'},
@@ -1161,10 +1137,12 @@ function App(){
         )
       ) : React.createElement('div',{className:'app-header'},
         React.createElement('div',{className:'app-logo'},
-          React.createElement('div',{className:'logo-icon', onClick:()=>setAdminTaps(p=>({...p, logo: true})), style:{cursor:'pointer'}},React.createElement(ActivityIcon, {size: 20})),
+          React.createElement('div',{className:'logo-icon', onClick:()=>setAdminTaps(p=>({...p, logo: true})), style:{cursor:'pointer', background:'none', padding:0}},
+            React.createElement('img', {src: 'assets/icon_book.png', style: {width: '48px', height: '48px', borderRadius: '12px'}})
+          ),
           React.createElement('div',{className:'logo-text'},
             React.createElement('h1',null,'Gym Notebook'),
-            React.createElement('p',null,'Твій щоденник тренувань')
+            React.createElement('p',null,'Щоденник тренувань')
           )
         ),
         React.createElement('div',{className:'cloud-status', style:{cursor:tab==='settings'?'pointer':'default'}, onClick:()=>{if(tab==='settings'&&adminTaps.logo)setAdminTaps(p=>({...p,sync:true}))}},
