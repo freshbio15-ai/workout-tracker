@@ -21,21 +21,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <div id="grid-bg"></div>
-  <div class="glow-blob bg-accent/5 w-[40rem] h-[40rem] -top-20 -left-20"></div>
-  <div class="glow-blob bg-accent2/5 w-[30rem] h-[30rem] bottom-0 right-0"></div>
-
   <div id="root"></div>
   <script src="app.js"></script>
-  <script>
-    window.addEventListener('mousemove', (e) => {
-      const grid = document.getElementById('grid-bg');
-      if (grid) {
-        const x = (e.clientX / window.innerWidth) * 15;
-        const y = (e.clientY / window.innerHeight) * 15;
-        grid.style.backgroundPosition = `${x}% ${y}%`;
-      }
-    });
-  </script>
 </body>
 </html>
