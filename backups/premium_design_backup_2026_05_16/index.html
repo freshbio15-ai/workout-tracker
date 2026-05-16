@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Gym Notebook">
+  <meta name="theme-color" content="#0a0a12">
+  <meta name="description" content="Твій особистий блокнот тренувань — записуй підходи, повтори та вагу по днях">
+  <title>Gym Notebook 💪</title>
+  <link rel="apple-touch-icon" id="dynamic-apple-icon" href="assets/icon_book.png">
+  <link rel="icon" id="dynamic-icon" href="assets/icon_book.png">
+  <link rel="stylesheet" href="styles.css">
+  <!-- React -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+</head>
+<body>
+  <div id="grid-bg"></div>
+  <div class="glow-blob bg-accent/5 w-[40rem] h-[40rem] -top-20 -left-20"></div>
+  <div class="glow-blob bg-accent2/5 w-[30rem] h-[30rem] bottom-0 right-0"></div>
+
+  <div id="root"></div>
+  <script src="app.js"></script>
+  <script>
+    window.addEventListener('mousemove', (e) => {
+      const grid = document.getElementById('grid-bg');
+      if (grid) {
+        const x = (e.clientX / window.innerWidth) * 15;
+        const y = (e.clientY / window.innerHeight) * 15;
+        grid.style.backgroundPosition = `${x}% ${y}%`;
+      }
+    });
+  </script>
+</body>
+</html>

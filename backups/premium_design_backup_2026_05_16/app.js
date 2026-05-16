@@ -1,23 +1,13 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
-const MuscleIcons = {
-  chest: (s=32) => React.createElement('img',{src:'assets/icon_chest.png', style:{width:s,height:s,objectFit:'contain'}}),
-  back: (s=32) => React.createElement('img',{src:'assets/icon_back.png', style:{width:s,height:s,objectFit:'contain'}}),
-  abs: (s=32) => React.createElement('img',{src:'assets/icon_abs.png', style:{width:s,height:s,objectFit:'contain'}}),
-  legs: (s=32) => React.createElement('img',{src:'assets/icon_legs.png', style:{width:s,height:s,objectFit:'contain'}}),
-  glutes: (s=32) => React.createElement('img',{src:'assets/icon_legs.png', style:{width:s,height:s,objectFit:'contain'}}),
-  shoulders: (s=32) => React.createElement('img',{src:'assets/icon_shoulders.png', style:{width:s,height:s,objectFit:'contain'}}),
-  biceps: (s=32) => React.createElement('img',{src:'assets/icon_biceps.png', style:{width:s,height:s,objectFit:'contain'}})
-};
-
 const MUSCLES = [
-  {id:'chest',icon:'chest',label:'Груди'},
-  {id:'back',icon:'back',label:'Спина'},
-  {id:'legs',icon:'legs',label:'Ноги'},
-  {id:'shoulders',icon:'shoulders',label:'Плечі'},
-  {id:'biceps',icon:'biceps',label:'Біцепс'},
-  {id:'triceps',icon:'biceps',label:'Тріцепс'},
-  {id:'abs',icon:'abs',label:'Прес'},
+  {id:'chest',icon:'assets/icon_chest.png',label:'Груди'},
+  {id:'back',icon:'assets/icon_back.png',label:'Спина'},
+  {id:'legs',icon:'assets/icon_legs.png',label:'Ноги'},
+  {id:'shoulders',icon:'assets/icon_shoulders.png',label:'Плечі'},
+  {id:'biceps',icon:'assets/icon_biceps.png',label:'Біцепс'},
+  {id:'triceps',icon:'assets/icon_triceps.png',label:'Тріцепс'},
+  {id:'abs',icon:'assets/icon_abs.png',label:'Прес'},
 ];
 
 const STORAGE = 'gymbook-data';
@@ -170,30 +160,6 @@ function App(){
   const [uid,setUid]=useState(null);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminAccounts, setAdminAccounts] = useState([]);
-  const [measDate, setMeasDate] = useState(todayKey());
-  const [measValue, setMeasValue] = useState('');
-  const [measUnit, setMeasUnit] = useState('см');
-  const [showMeasPicker, setShowMeasPicker] = useState(false);
-  const [measPickerYear, setMeasPickerYear] = useState(new Date().getFullYear());
-  const [measPickerMonth, setMeasPickerMonth] = useState(new Date().getMonth());
-  const [measMuscleName, setMeasMuscleName] = useState('Груди');
-  const [showMuscleModal, setShowMuscleModal] = useState(false);
-
-  const MUSCLE_MEASUREMENTS = [
-    {label:'Груди', icon:'chest'},
-    {label:'Спина', icon:'back'},
-    {label:'Талія', icon:'abs'},
-    {label:'Квадри лівий', icon:'legs'},
-    {label:'Квадри правий', icon:'legs'},
-    {label:'Ягодичні', icon:'glutes'},
-    {label:'Плечі', icon:'shoulders'},
-    {label:'Біц правий', icon:'biceps'},
-    {label:'Біц лівий', icon:'biceps'}
-  ];
-
-  const [confirmAction, setConfirmAction] = useState(null); // {title, onConfirm}
-  const [editItem, setEditItem] = useState(null); // {type:'weight'|'meas', key, val, date, originalIndex}
-  const [editVal, setEditVal] = useState('');
 
   const [cloudStatus,setCloudStatus]=useState('connecting'); // connecting | synced | saving | offline
   const [timerEnd,setTimerEnd]=useState(null);
@@ -246,12 +212,8 @@ function App(){
             persist(STORAGE, cloud.data);
           }
           if(cloud.settings){
-            const localS = load(SETTINGS_KEY, null);
-            // Merge/Overwrite logic: only overwrite if local is missing or cloud is newer
-            if(!localS || !localS.lastUpdated || (cloud.settings.lastUpdated && cloud.settings.lastUpdated > localS.lastUpdated)){
-              setSettings(cloud.settings);
-              persist(SETTINGS_KEY, cloud.settings);
-            }
+            setSettings(cloud.settings);
+            persist(SETTINGS_KEY, cloud.settings);
           }
         }
         setCloudStatus('synced');
@@ -548,7 +510,7 @@ function App(){
                 className:'emoji-muscle-btn'+(ex.muscle===mg.id?' active':''),
                 onClick:()=>setExMuscle(ei,mg.id),
                 title:mg.label
-              }, MuscleIcons[mg.icon] ? MuscleIcons[mg.icon](32) : null))
+              },React.createElement('img',{src:mg.icon,className:'muscle-btn-icon',alt:mg.label})))
             ),
             // "Минулого разу" hint
             
@@ -710,7 +672,7 @@ function App(){
 
         return React.createElement('div',{key:i,className:'detail-ex-card'},
           React.createElement('div',{className:'detail-ex-header'},
-            React.createElement('div',{className:'detail-ex-name',style:{display:'flex',alignItems:'center',gap:'6px'}},(()=>{const mg=MUSCLES.find(e=>e.id===(ex.muscle||''));return mg?(MuscleIcons[mg.icon]?MuscleIcons[mg.icon](16):null):null})(),ex.name),
+            React.createElement('div',{className:'detail-ex-name',style:{display:'flex',alignItems:'center',gap:'6px'}},(()=>{const mg=MUSCLES.find(e=>e.id===(ex.muscle||''));return mg?React.createElement('img',{src:mg.icon,className:'inline-muscle-icon'}):null})(),ex.name),
             React.createElement('div',{className:'detail-ex-ton'},exTon>1000?(exTon/1000).toFixed(1)+' т':exTon+' кг')
           ),
           React.createElement('table',{className:'detail-table'},
@@ -823,7 +785,7 @@ function App(){
                 const t = stat.tonnage;
                 const pct = Math.max(5, Math.round((t / maxMuscleTonnage) * 100)); // min 5% for visibility
                 return React.createElement('div',{key:key,className:'mt-row'},
-                  React.createElement('div',{className:'mt-emoji'}, MuscleIcons[stat.icon] ? MuscleIcons[stat.icon](20) : null),
+                  React.createElement('div',{className:'mt-emoji'},React.createElement('img',{src:stat.icon, alt:stat.label})),
                   React.createElement('div',{className:'mt-bar-container'},
                     React.createElement('div',{className:'mt-bar-header'},
                       React.createElement('span',{className:'mt-name'},stat.label),
@@ -862,7 +824,7 @@ function App(){
                 const mg = MUSCLES.find(e=>e.id===(ex.muscle||''));
                 return React.createElement('div',{key:i,className:'hc-ex'},
                   React.createElement('div',{className:'hc-ex-left'},
-                    (mg && MuscleIcons[mg.icon]) ? MuscleIcons[mg.icon](14) : null,
+                    mg&&React.createElement('img',{src:mg.icon, style:{width:'14px',height:'14px'}}),
                     ex.name + (ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
                   ),
                   React.createElement('div',{className:'hc-ex-right'},
@@ -876,7 +838,10 @@ function App(){
     );
   }
 
-  function renderAnalytics() {
+  // ─── SETTINGS TAB ──────────────────────────────────────────────
+  
+    function renderAnalytics() {
+    // Weight Tracker logic
     const weightHistory = settings.weightHistory || {};
     const allWeightKeys = Object.keys(weightHistory).sort();
     const totalWPages = Math.ceil(allWeightKeys.length / 10);
@@ -890,182 +855,96 @@ function App(){
       wStart = Math.max(0, wEnd - 10);
     }
     const weightKeys = allWeightKeys.slice(wStart, wEnd);
-    const weightChartData = weightKeys.map(k => ({ date: k, weight: weightHistory[k] }));
+    const weightChartData = weightKeys.map(k => ({ date: k, weight: bwUnit === 'lbs' ? (weightHistory[k] / 0.453592) : weightHistory[k] }));
     const wMin = weightChartData.length > 0 ? Math.min(...weightChartData.map(d => d.weight)) : 0;
     const wMax = weightChartData.length > 0 ? Math.max(...weightChartData.map(d => d.weight)) : 0;
     const wRange = (wMax - wMin) || 1;
-    const wBase = Math.max(0, wMin - (wRange * 0.4));
+    const wBase = Math.max(0, wMin - (wRange * 0.5));
 
-    const svgW = 1000;
-    const svgH = 160; 
-    const padX = 50;
-    const padY = 30; 
-    const chartW = svgW - padX * 2;
-    const chartH = svgH - padY * 2;
-
-    const getX = (i) => padX + (i / (weightChartData.length - 1 || 1)) * chartW;
-    const getY = (w) => svgH - padY - ((w - wBase) / (wMax - wBase + wRange * 0.1 || 1)) * chartH;
-
-    let lineD = '';
-    let areaD = '';
-    if (weightChartData.length > 0) {
-      weightChartData.forEach((d, i) => {
-        const x = getX(i);
-        const y = getY(d.weight);
-        if (i === 0) {
-          lineD = `M ${x} ${y}`;
-          areaD = `M ${x} ${svgH - padY} L ${x} ${y}`;
-        } else {
-          const prevX = getX(i - 1);
-          const prevY = getY(weightChartData[i - 1].weight);
-          const cpX1 = prevX + (x - prevX) / 2;
-          const cpX2 = prevX + (x - prevX) / 2;
-          lineD += ` C ${cpX1} ${prevY}, ${cpX2} ${y}, ${x} ${y}`;
-          areaD += ` C ${cpX1} ${prevY}, ${cpX2} ${y}, ${x} ${y}`;
-        }
-      });
-      if (weightChartData.length > 0) areaD += ` L ${getX(weightChartData.length - 1)} ${svgH - padY} Z`;
-    }
-
-    return React.createElement('div', {className: 'analytics-container'},
-      React.createElement('h2', {style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'16px'}}, React.createElement(TrendingUpIcon), 'Аналітика'),
-      
-      React.createElement('div', {className: 'chart-wrapper'},
-        // Weight header + inputs
-        React.createElement('div', {style:{display:'flex', flexDirection:'column', gap:'16px', marginBottom:'24px'}},
-          React.createElement('span', {style:{fontSize:'15px', fontWeight:'800', letterSpacing:'-0.3px', display:'flex', justifyContent:'space-between', alignItems:'center'}}, 
-            'Динаміка власної ваги (кг)',
-            React.createElement('button', {
-              style:{background:'none', border:'none', padding:'6px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'},
-              onClick:()=>setConfirmAction({
-                title: 'Видалити всю історію ваги?',
-                onConfirm: () => { setSettings(s=>({...s, weightHistory:{}})); setWeightPage(0); flash('Історію очищено'); }
-              })
-            }, React.createElement(TrashIcon, {size: 18, style:{color:'#ffffff'}}))
-          ),
-          React.createElement('div', {className: 'pixel-row'},
-            React.createElement('button', {style:{flex: 1}, onClick:()=>setShowBwPicker(true)}, React.createElement(CalendarIcon, {size: 14, style:{marginRight:'8px'}}), fmtShort(bwDate)),
-            React.createElement('div', {className: 'input-wrap'},
-              React.createElement('input', {type:'number', step:'0.1', placeholder:'75.5', value:bwValue, onChange:e=>setBwValue(e.target.value)}),
-              React.createElement('span', {className: 'suffix'}, 'кг')
+    return React.createElement(React.Fragment, null,
+      React.createElement('div', {className: 'analytics-container'},
+        React.createElement('h2', {style:{display:'flex',alignItems:'center',gap:'8px',marginBottom:'16px'}}, React.createElement('div',{style:{display:'flex',alignItems:'center',marginTop:'-2px'}},React.createElement(TrendingUpIcon)), 'Аналітика'),
+        
+        // Weight tracker section
+        React.createElement('div', {className: 'chart-wrapper'},
+          React.createElement('div', {className: 'chart-title', style:{display:'flex',justifyContent:'space-between',alignItems:'center', flexWrap:'wrap', gap:'12px', paddingBottom:'12px'}}, 
+            React.createElement('div', {style:{display:'flex', justifyContent:'space-between', width:'100%', alignItems:'center'}},
+              `Динаміка власної ваги (${bwUnit})`,
+              React.createElement('button', {onClick:()=>{if(confirm('Видалити всю історію ваги?')){setSettings(s=>({...s, weightHistory:{}})); setWeightPage(0); flash('Історію очищено');}}, style:{background:'none',border:'none',color:'var(--red)',fontSize:'12px',cursor:'pointer'}}, 'Стерти все')
             ),
-            React.createElement('button', {className: 'primary', style:{flex: 1}, onClick:()=>{
-              let val = Number(bwValue);
-              if(bwDate && val > 0) {
-                setSettings(s => {
-                  const newS = {...s, weightHistory: {...(s.weightHistory||{}), [bwDate]: val}, lastUpdated: Date.now()};
-                  persist(SETTINGS_KEY, newS);
-                  return newS;
-                }); 
-                setWeightPage(0);
-                setBwValue('');
-                flash('Вагу збережено');
-              }
-            }}, 'Додати')
-          )
-        ),
-
-        // Weight Chart
-        weightChartData.length > 0 ? React.createElement('div', {style:{position:'relative', margin:'0 -10px'}},
-          // Nav buttons
-          allWeightKeys.length > 10 && React.createElement(React.Fragment, null,
-            React.createElement('button', {className:'chart-nav-btn left', disabled: weightPage >= totalWPages-1, onClick:()=>setWeightPage(p=>Math.min(p+1, totalWPages-1))}, React.createElement(ArrowLeftIcon, {size:18})),
-            React.createElement('button', {className:'chart-nav-btn right', disabled: weightPage === 0, onClick:()=>setWeightPage(p=>Math.max(0, p-1))}, React.createElement(ArrowRightIcon, {size:18}))
+            React.createElement('div', {style:{display:'flex', gap:'8px', width:'100%', alignItems:'flex-end'}},
+              React.createElement('button', {
+                className: 'date-trigger-btn',
+                style: {flex: 1, height: '36px', padding: '0 12px', fontSize: '13px', margin: 0, boxShadow: 'none'},
+                onClick: () => setShowBwPicker(true)
+              }, React.createElement(CalendarIcon, {size: 14, style:{marginTop:'-1px'}}), fmtShort(bwDate) + ' ▾'),
+              React.createElement('div', {style:{flex:'1', display:'flex', flexDirection:'column', gap:'6px'}},
+                React.createElement('div', {style:{display:'flex', gap:'4px', justifyContent:'center'}},
+                  React.createElement('button', {onClick:()=>setBwUnit('кг'), style:{padding:'2px 8px', fontSize:'10px', borderRadius:'4px', fontWeight:'bold', background: bwUnit==='кг'?'rgba(16,185,129,.15)':'var(--bg3)', color: bwUnit==='кг'?'var(--green2)':'var(--text3)', border:'1px solid '+(bwUnit==='кг'?'rgba(16,185,129,.3)':'var(--border)')}}, 'кг'),
+                  React.createElement('button', {onClick:()=>setBwUnit('lbs'), style:{padding:'2px 8px', fontSize:'10px', borderRadius:'4px', fontWeight:'bold', background: bwUnit==='lbs'?'rgba(16,185,129,.15)':'var(--bg3)', color: bwUnit==='lbs'?'var(--green2)':'var(--text3)', border:'1px solid '+(bwUnit==='lbs'?'rgba(16,185,129,.3)':'var(--border)')}}, 'lbs')
+                ),
+                React.createElement('input', {type:'number', step:'0.001', className:'set-input', style:{padding:'0', margin:0, height:'36px'}, placeholder:bwUnit==='кг'?'75.5':'165.0', value:bwValue, onChange:e=>setBwValue(e.target.value)})
+              ),
+              React.createElement('button', {className:'bw-toggle-btn active', style:{padding:'0 12px', margin:0, height:'36px', borderRadius:'var(--radius-xs)', background:'rgba(16,185,129,.15)', border:'1px solid rgba(16,185,129,.3)', color:'var(--green2)', fontSize:'12px', fontWeight:'700', cursor:'pointer'}, onClick:()=>{
+                let val = Number(bwValue);
+                if(bwDate && val > 0) {
+                  if(bwUnit === 'lbs') val = val * 0.453592; // convert lbs to kg
+                  setSettings(s => ({...s, weightHistory: {...(s.weightHistory||{}), [bwDate]: val}})); setWeightPage(0);
+                  setBwValue('');
+                  flash('Вагу збережено');
+                }
+              }}, 'Додати')
+            )
           ),
-          React.createElement('div', {className: 'chart-container'},
-            React.createElement('svg', {viewBox: `0 0 ${svgW} ${svgH}`, style: {width: '100%', height: '100%', overflow: 'visible'}},
-              React.createElement('path', {d: areaD, fill: '#34d399', fillOpacity: 0.15}),
-              React.createElement('path', {d: lineD, fill: 'none', stroke: '#34d399', strokeWidth: 3, strokeLinecap: 'round', strokeLinejoin: 'round'}),
+          weightChartData.length > 0 ? React.createElement(React.Fragment, null, 
+            React.createElement('div', {className: 'chart-container', style:{height:'140px', marginBottom:'8px'}},
               weightChartData.map((d, i) => {
-                const x = getX(i);
-                const y = getY(d.weight);
-                return React.createElement('g', {
-                  key: i, 
-                  onClick: () => { setEditItem({type:'weight', date:d.date, val:d.weight}); setEditVal(d.weight); },
-                  style: {cursor:'pointer'}
-                },
-                  React.createElement('circle', {cx: x, cy: y, r: 8, fill: '#34d399'}),
-                  React.createElement('text', {x: x, y: y - 28, fill: '#34d399', fontSize: '36px', fontWeight: '800', textAnchor: 'middle'}, d.weight % 1 === 0 ? d.weight : d.weight.toFixed(1))
+                const h = Math.max(5, Math.round(((d.weight - wBase) / (wMax - wBase + wRange*0.2)) * 100));
+                
+                const gIdx = allWeightKeys.indexOf(d.date);
+                const pDate = gIdx > 0 ? allWeightKeys[gIdx - 1] : null;
+                const pW = pDate ? (bwUnit === 'lbs' ? weightHistory[pDate]/0.453592 : weightHistory[pDate]) : d.weight;
+                
+                const isDrop = d.weight < pW;
+                const isGain = d.weight > pW;
+                const barColor = isDrop ? 'linear-gradient(to top, var(--green), var(--red))' : (isGain ? 'linear-gradient(to top, var(--red), var(--green2))' : 'linear-gradient(to top, rgba(16,185,129,0.4), var(--green2))');
+                const glowColor = isDrop ? 'rgba(239,68,68,0.3)' : 'rgba(16,185,129,0.3)';
+                const valColor = isDrop ? 'var(--red)' : (isGain ? 'var(--green2)' : 'var(--text3)');
+                const displayWeight = d.weight % 1 === 0 ? d.weight : parseFloat(d.weight.toFixed(2));
+                return React.createElement('div', {key: i, className: 'chart-col', style:{cursor:'pointer'}, onClick:()=>{
+                  const nw = prompt(`Змінити вагу за ${fmtShort(d.date)} (${bwUnit})?
+Введіть нове значення (або залиште порожнім щоб видалити):`, d.weight % 1 === 0 ? d.weight : d.weight.toFixed(3));
+                  if (nw !== null) {
+                    if (nw.trim() === '') {
+                      setSettings(s => { const ns = {...s, weightHistory: {...(s.weightHistory||{})}}; delete ns.weightHistory[d.date]; return ns; });
+                      flash('Запис видалено');
+                    } else {
+                      let val = Number(nw);
+                      if (!isNaN(val) && val > 0) {
+                        if (bwUnit === 'lbs') val = val * 0.453592;
+                        setSettings(s => ({...s, weightHistory: {...(s.weightHistory||{}), [d.date]: val}}));
+                        flash('Запис оновлено');
+                      }
+                    }
+                  }
+                }},
+                  React.createElement('div', {className: 'chart-value', style:{color:valColor, fontSize:'9px', top:'-18px', whiteSpace:'nowrap'}}, displayWeight),
+                  React.createElement('div', {className: 'chart-bar', style: {height: '100%'}},
+                    React.createElement('div', {className: 'chart-bar-fill', style: {height: h + '%', background: barColor, boxShadow: `0 0 10px ${glowColor}`}})
+                  ),
+                  React.createElement('div', {className: 'chart-label'}, fmtShort(d.date))
                 );
               })
-            )
-          ),
-          React.createElement('div', {style:{display:'flex', justifyContent:'space-between', padding:'0 5px', marginTop:'0', marginBottom:'16px'}},
-            weightChartData.map((d, i) => React.createElement('div', {key: i, style:{fontSize:'10px', color:'var(--text3)', fontWeight:'600', textAlign:'center', flex:1, lineHeight:'1.1'}}, fmtShort(d.date).split(' ').map((s, idx)=>React.createElement('div', {key:idx}, s))))
-          )
-        ) : React.createElement('div', {style:{textAlign:'center',color:'var(--text3)', padding:'40px 0'}}, 'Додайте свою вагу'),
-
-        React.createElement('div', {style:{height:'1px', background:'var(--border)', margin:'20px 0' }}),
-
-        // Body measurements section
-        React.createElement('div', {style:{display:'flex', flexDirection:'column', gap:'12px'}},
-          React.createElement('span', {style:{fontSize:'15px', fontWeight:'800', letterSpacing:'-0.3px', display:'flex', alignItems:'center', gap:'8px'}}, 
-            React.createElement('span', {style:{fontSize:'18px'}}, '📏'), 'Заміри тіла (см)'
-          ),
-          // Top Row: Date & Muscle Selector
-          React.createElement('div', {className: 'pixel-row'},
-            React.createElement('button', {style:{flex: '1'}, onClick:()=>setShowMeasPicker(true)}, React.createElement(CalendarIcon, {size: 14, style:{marginRight:'8px'}}), fmtShort(measDate)),
-            React.createElement('button', {style:{flex: '2', justifyContent:'space-between', padding:'0 16px'}, onClick:()=>setShowMuscleModal(true)}, 
-              measMuscleName || 'Виберіть м\'яз', React.createElement('span', {style:{fontSize:'10px', opacity:0.6}}, '▼')
-            )
-          ),
-          // Bottom Row: Value & Add Button
-          React.createElement('div', {className: 'pixel-row'},
-            React.createElement('div', {className: 'input-wrap', style:{flex: '1'}},
-              React.createElement('input', {type:'number', step:'0.1', placeholder:'78.5', value:measValue, onChange:e=>setMeasValue(e.target.value)}),
-              React.createElement('span', {className: 'suffix'}, 'см')
             ),
-            React.createElement('button', {className: 'primary', style:{flex: '1'}, onClick:()=>{
-              let val = Number(measValue);
-              if(measDate && val > 0 && measMuscleName) {
-                setSettings(s => {
-                  const current = Array.isArray(s.measHistory) ? s.measHistory : [];
-                  const newS = {...s, measHistory: [{date: measDate, val, name: measMuscleName}, ...current].slice(0, 50), lastUpdated: Date.now()};
-                  persist(SETTINGS_KEY, newS);
-                  return newS;
-                });
-                setMeasValue('');
-                flash('Замір збережено');
-              }
-            }}, 'Додати')
-          ),
-
-          // Measurement History List
-          (Array.isArray(settings.measHistory) && settings.measHistory.length > 0) && React.createElement('div', {style:{marginTop:'12px', display:'flex', flexDirection:'column', gap:'8px'}},
-            settings.measHistory.slice(0, 10).map((item, idx) => {
-              const mInfo = MUSCLE_MEASUREMENTS.find(m => m.label === item.name);
-              return React.createElement('div', {
-                key: idx, 
-                onClick:()=>{ setEditItem({type:'meas', date:item.date, val:item.val, name:item.name, originalIndex:idx}); setEditVal(item.val); },
-                style:{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'10px 16px', background:'var(--bg2)', borderRadius:'14px', border:'1px solid var(--border)', cursor:'pointer'}
-              },
-                React.createElement('div', {style:{display:'flex', alignItems:'center', gap:'12px'}},
-                  (mInfo && MuscleIcons[mInfo.icon]) ? MuscleIcons[mInfo.icon](32) : null,
-                  React.createElement('div', {style:{display:'flex', flexDirection:'column'}},
-                    React.createElement('span', {style:{fontSize:'14px', fontWeight:'700'}}, item.name),
-                    React.createElement('span', {style:{fontSize:'11px', color:'var(--text3)'}}, fmtShort(item.date))
-                  )
-                ),
-                React.createElement('div', {style:{display:'flex', alignItems:'center', gap:'12px'}},
-                  React.createElement('span', {style:{fontSize:'16px', fontWeight:'800', color:'#34d399'}}, `${item.val}`),
-                  React.createElement('button', {
-                    style:{background:'none', border:'none', padding:'8px', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center'},
-                    onClick:(e)=>{
-                      e.stopPropagation();
-                      setEditItem({type:'meas', date:item.date, val:item.val, name:item.name, originalIndex:idx});
-                    }
-                  }, React.createElement(TrashIcon, {size: 18, style:{color:'var(--text3)', opacity:0.6}}))
-                )
-              );
-            })
-          )
+            allWeightKeys.length > 10 && React.createElement('div', {style:{display:'flex', justifyContent:'center', gap:'12px', marginTop:'8px'}},
+              React.createElement('button', {onClick:()=>setWeightPage(p=>Math.min(p+1, totalWPages-1)), disabled: weightPage >= totalWPages-1, style:{background:'var(--bg3)', border:'1px solid var(--border)', color: weightPage >= totalWPages-1 ? 'var(--text3)' : 'var(--text1)', padding:'6px 16px', borderRadius:'20px', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px', fontSize:'11px', fontWeight:'700'}}, React.createElement(ArrowLeftIcon, {size:14}), 'Назад'),
+              React.createElement('button', {onClick:()=>setWeightPage(p=>Math.max(0, p-1)), disabled: weightPage === 0, style:{background:'var(--bg3)', border:'1px solid var(--border)', color: weightPage === 0 ? 'var(--text3)' : 'var(--text1)', padding:'6px 16px', borderRadius:'20px', cursor:'pointer', display:'flex', alignItems:'center', gap:'6px', fontSize:'11px', fontWeight:'700'}}, 'Вперед', React.createElement(ArrowRightIcon, {size:14}))
+            )
+          ) : React.createElement('div', {style:{textAlign:'center',color:'var(--text3)'}}, 'Додайте свою вагу для відображення графіка')
         )
       )
     );
   }
-
-
-
 
   function renderSettings(){
     return React.createElement(React.Fragment,null,
@@ -1198,154 +1077,6 @@ function App(){
     );
   }
 
-  function renderMeasPicker(){
-    if(!showMeasPicker) return null;
-    const grid = buildGrid(measPickerYear, measPickerMonth);
-    
-    return React.createElement('div',{className:'cc-overlay',onClick:()=>setShowMeasPicker(false)},
-      React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),style:{padding:0,overflow:'hidden'}},
-        React.createElement('div',{className:'calendar-wrap',style:{marginBottom:0,border:'none',borderRadius:0}},
-          React.createElement('div',{className:'cal-nav'},
-            React.createElement('button',{className:'cal-arrow',onClick:()=>setMeasPickerMonth(m=>{if(m===0){setMeasPickerYear(y=>y-1);return 11}return m-1})},React.createElement(ArrowLeftIcon)),
-            React.createElement('span',{className:'cal-month'},`${MONTHS[measPickerMonth]} ${measPickerYear}`),
-            React.createElement('button',{className:'cal-arrow',onClick:()=>setMeasPickerMonth(m=>{if(m===11){setMeasPickerYear(y=>y+1);return 0}return m+1})},React.createElement(ArrowRightIcon))
-          ),
-          React.createElement('div',{className:'cal-weekdays'},
-            WEEKDAYS.map(w=>React.createElement('div',{key:w,className:'cal-wd'},w))
-          ),
-          React.createElement('div',{className:'cal-grid'},
-            grid.map((d,i)=>{
-              if(!d) return React.createElement('div',{key:i,className:'cal-day empty'});
-              const k = toKey(new Date(measPickerYear, measPickerMonth, d));
-              const isSel = k === measDate;
-              const hasData = settings.measHistory && settings.measHistory[k];
-              const cls = 'cal-day' + (isSel?' selected':'') + (k===todayKey()?' today':'') + (hasData?' has-workout':'');
-              return React.createElement('div',{key:i,className:cls,onClick:()=>{
-                setMeasDate(k);
-                setShowMeasPicker(false);
-              }},d,hasData&&React.createElement('div',{className:'day-dot '+(k<todayKey()?'past':'current')}));
-            })
-          )
-        )
-      )
-    );
-  }
-
-  function renderMuscleModal(){
-    if(!showMuscleModal) return null;
-    return React.createElement('div', {className:'cc-overlay', onClick:()=>setShowMuscleModal(false)},
-      React.createElement('div', {className:'cc-modal', onClick:e=>e.stopPropagation(), style:{
-        position:'absolute', bottom:0, left:0, right:0, borderRadius:'24px 24px 0 0', 
-        padding:'20px', background:'var(--bg1)', borderTop:'1px solid var(--border)',
-        maxHeight:'70vh', overflowY:'auto'
-      }},
-        React.createElement('div', {style:{width:'40px', height:'4px', background:'var(--border)', borderRadius:'2px', margin:'0 auto 20px' }}),
-        React.createElement('div', {className:'cc-header', style:{marginBottom:'20px'}},
-          React.createElement('div', {className:'cc-title', style:{width:'100%', textAlign:'center', fontSize:'18px'}}, 'Вибір м\'яза')
-        ),
-        React.createElement('div', {style:{display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'16px'}},
-          MUSCLE_MEASUREMENTS.map(m => React.createElement('button', {
-            key: m.label,
-            onClick: () => { setMeasMuscleName(m.label); setShowMuscleModal(false); },
-            style: {
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px',
-              padding: '12px 4px', borderRadius: '16px', border: 'none',
-              background: measMuscleName === m.label ? 'rgba(52,211,153,0.1)' : 'transparent',
-              color: measMuscleName === m.label ? '#34d399' : 'var(--text1)',
-              cursor: 'pointer'
-            }
-          }, 
-            (MuscleIcons[m.icon]) ? MuscleIcons[m.icon](40) : null,
-            React.createElement('span', {style:{fontSize:'11px', fontWeight:'700', textAlign:'center'}}, m.label)
-          ))
-        )
-      )
-    );
-  }
-
-  function renderEditModal(){
-    if(!editItem) return null;
-
-    return React.createElement('div', {className:'cc-overlay', onClick:()=>setEditItem(null), style:{zIndex:9998}},
-      React.createElement('div', {className:'cc-modal', onClick:e=>e.stopPropagation(), style:{padding:'24px', width:'320px'}},
-        React.createElement('div', {style:{fontSize:'18px', fontWeight:'800', marginBottom:'4px'}}, editItem.type === 'weight' ? 'Редагувати вагу' : 'Редагувати замір'),
-        React.createElement('div', {style:{fontSize:'12px', color:'var(--text3)', marginBottom:'20px'}}, fmtFull(editItem.date) + (editItem.name ? ` • ${editItem.name}` : '')),
-        
-        React.createElement('div', {className:'input-wrap', style:{marginBottom:'24px', background:'var(--bg3)', borderRadius:'12px', padding:'4px 12px'}},
-          React.createElement('input', {
-            type:'number', step:'0.1', value:editVal, 
-            onChange:e=>setEditVal(e.target.value),
-            style:{background:'none', border:'none', color:'var(--text1)', fontSize:'20px', fontWeight:'700', width:'100%', padding:'12px 0'}
-          }),
-          React.createElement('span', {style:{color:'var(--text3)', fontWeight:'700'}}, editItem.type === 'weight' ? 'кг' : 'см')
-        ),
-
-        React.createElement('div', {style:{display:'flex', flexDirection:'column', gap:'12px'}},
-          React.createElement('button', {className:'primary', style:{width:'100%', padding:'14px'}, onClick:()=>{
-            const finalVal = Number(editVal);
-            if(finalVal > 0) {
-              setSettings(s => {
-                let newS;
-                if(editItem.type === 'weight') {
-                  newS = {...s, weightHistory: {...(s.weightHistory||{}), [editItem.date]: finalVal}, lastUpdated: Date.now()};
-                } else {
-                  const history = Array.isArray(s.measHistory) ? [...s.measHistory] : [];
-                  if(history[editItem.originalIndex]) history[editItem.originalIndex].val = finalVal;
-                  newS = {...s, measHistory: history, lastUpdated: Date.now()};
-                }
-                persist(SETTINGS_KEY, newS);
-                return newS;
-              });
-              setEditItem(null);
-              flash('Зміни збережено');
-            }
-          }}, 'Зберегти'),
-          React.createElement('button', {style:{width:'100%', padding:'12px', background:'rgba(239,68,68,0.1)', border:'none', borderRadius:'12px', color:'#ef4444', fontWeight:'700', cursor:'pointer'}, onClick:()=>{
-            setConfirmAction({
-              title: `Видалити цей запис?`,
-              onConfirm: () => {
-                setSettings(s => {
-                  let newS;
-                  if(editItem.type === 'weight') {
-                    const next = {...(s.weightHistory||{})};
-                    delete next[editItem.date];
-                    newS = {...s, weightHistory: next, lastUpdated: Date.now()};
-                  } else {
-                    const history = Array.isArray(s.measHistory) ? s.measHistory : [];
-                    const nextHistory = history.filter((_, i) => i !== editItem.originalIndex);
-                    newS = {...s, measHistory: nextHistory, lastUpdated: Date.now()};
-                  }
-                  persist(SETTINGS_KEY, newS);
-                  return newS;
-                });
-                setEditItem(null);
-                flash('Видалено');
-              }
-            });
-          }}, 'Видалити'),
-          React.createElement('button', {style:{width:'100%', padding:'12px', background:'none', border:'none', color:'var(--text3)', fontWeight:'600', cursor:'pointer'}, onClick:()=>setEditItem(null)}, 'Скасувати')
-        )
-      )
-    );
-  }
-
-  function renderConfirmModal(){
-    if(!confirmAction) return null;
-    return React.createElement('div', {className:'cc-overlay', onClick:()=>setConfirmAction(null), style:{zIndex:9999}},
-      React.createElement('div', {className:'cc-modal', onClick:e=>e.stopPropagation(), style:{padding:'24px', textAlign:'center', width:'300px'}},
-        React.createElement('div', {style:{fontSize:'18px', fontWeight:'800', marginBottom:'12px'}}, 'Підтвердження'),
-        React.createElement('div', {style:{fontSize:'14px', color:'var(--text2)', marginBottom:'24px'}}, confirmAction.title),
-        React.createElement('div', {style:{display:'flex', gap:'12px'}},
-          React.createElement('button', {style:{flex:1, background:'var(--bg3)', color:'var(--text1)', border:'none', padding:'12px', borderRadius:'12px', fontWeight:'700'}, onClick:()=>setConfirmAction(null)}, 'Скасувати'),
-          React.createElement('button', {style:{flex:1, background:'#ef4444', color:'white', border:'none', padding:'12px', borderRadius:'12px', fontWeight:'700'}, onClick:()=>{
-            confirmAction.onConfirm();
-            setConfirmAction(null);
-          }}, 'Видалити')
-        )
-      )
-    );
-  }
-
   function renderCustomPicker(){
     if(!showPicker) return null;
     const grid = buildGrid(pickerYear, pickerMonth);
@@ -1446,11 +1177,8 @@ function App(){
     toast&&React.createElement('div',{key:toast,className:'toast'},toast),
       renderCustomPicker(),
       renderBwPicker(),
-      renderMeasPicker(),
       renderAdminModal(),
-      renderMuscleModal(),
-      renderEditModal(),
-      renderConfirmModal(),
+null,
       showTimerPopup && React.createElement('div',{className:'cc-overlay',onClick:()=>setShowTimerPopup(false)},
         React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation()},
           React.createElement('div',{className:'cc-header'},
