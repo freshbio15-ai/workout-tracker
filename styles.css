@@ -220,12 +220,12 @@ body {
 .ex-remove-btn:active{transform:scale(.88);background:rgba(239,68,68,.25)}
 
 /* ===== SETS ===== */
-.sets-header{display:grid;grid-template-columns:30px 1fr 16px 1fr 32px 28px;gap:5px;margin-bottom:5px;padding:0 2px}
+.sets-header{display:grid;grid-template-columns:30px 1fr 16px 1fr 28px;gap:5px;margin-bottom:5px;padding:0 2px}
 .sets-header span{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;text-align:center}
 .sets-header span:first-child{text-align:left}
 
-.set-row{display:grid;grid-template-columns:30px 1fr 16px 1fr 32px 28px;gap:5px;margin-bottom:5px;align-items:center}
-.set-row.set-row-first{grid-template-columns:30px 1fr 16px 1fr 32px 28px}
+.set-row{display:grid;grid-template-columns:30px 1fr 16px 1fr 28px;gap:5px;margin-bottom:5px;align-items:center}
+.set-row.set-row-first{grid-template-columns:30px 1fr 16px 1fr 28px}
 .set-badge{width:26px;height:26px;border-radius:7px;background:rgba(124,58,237,.15);color:var(--accent3);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
 .set-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);padding:7px 6px;color:var(--text1);font-size:13px;font-family:inherit;text-align:center;transition:border-color .2s}
 .set-input::placeholder{color:var(--text3)}

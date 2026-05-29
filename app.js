@@ -223,12 +223,7 @@ function App(){
   const [editVal, setEditVal] = useState('');
 
   const [cloudStatus,setCloudStatus]=useState('connecting'); // connecting | synced | saving | offline
-  const [timerEnd,setTimerEnd]=useState(null);
-  const [timeLeft,setTimeLeft]=useState(0);
-  const [showTimerPopup,setShowTimerPopup]=useState(false);
   const [showCalendarPopup,setShowCalendarPopup]=useState(false);
-  const [timerCustomMin,setTimerCustomMin]=useState(1);
-  const [timerCustomSec,setTimerCustomSec]=useState(0);
   const tRef=useRef(null);
   const saveTimer=useRef(null);
   const isFirstLoad=useRef(true);
@@ -315,78 +310,7 @@ function App(){
 
   function flash(m){clearTimeout(tRef.current);setToast(m);tRef.current=setTimeout(()=>setToast(null),1800)}
 
-  // ── Timer Logic ──────────────────────────────────────────────────
-  const playTick = () => {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (!AudioContext) return;
-      if (!window.__audioCtx) window.__audioCtx = new AudioContext();
-      const ctx = window.__audioCtx;
-      if (ctx.state === 'suspended') ctx.resume();
-      
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      
-      // CS2 bomb tick approx: high pitched square wave, very short, sharp decay
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(2800, ctx.currentTime); // ~2.8kHz
-      
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.06);
-      
-      // Add slight lowpass filter to remove harsh edge of pure square
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 5000;
-      
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(ctx.destination);
-      
-      osc.start();
-      osc.stop(ctx.currentTime + 0.06);
-    } catch(e){}
-  };
-
-  useEffect(()=>{
-    if(!timerEnd) return;
-    const tick = () => {
-      const remaining = Math.ceil((timerEnd - Date.now()) / 1000);
-      if (remaining <= 0) {
-        setTimeLeft(0);
-        setTimerEnd(null);
-        if ('vibrate' in navigator) navigator.vibrate([500, 200, 500, 200, 1000]);
-      } else {
-        setTimeLeft(remaining);
-        if (remaining <= 10) playTick();
-      }
-    };
-    tick();
-    const iv = setInterval(tick, 1000);
-    return () => clearInterval(iv);
-  }, [timerEnd]);
-
-  function startTimer(sec) {
-    try {
-      const AudioContext = window.AudioContext || window.webkitAudioContext;
-      if (AudioContext) {
-        if (!window.__audioCtx) window.__audioCtx = new AudioContext();
-        if (window.__audioCtx.state === 'suspended') window.__audioCtx.resume();
-      }
-    } catch(e){}
-    if (showTimerPopup && showTimerPopup.ei !== undefined) {
-      setField(showTimerPopup.ei, showTimerPopup.si, 'rest', sec);
-    }
-    setTimerEnd(Date.now() + sec * 1000);
-    setTimeLeft(sec);
-    setShowTimerPopup(false);
-  }
-
-  function fmtTimer(s) {
-    const m = Math.floor(s/60);
-    const rs = s % 60;
-    return `${m}:${rs.toString().padStart(2, '0')}`;
-  }
+  // ── Timer Logic Removed ────────────────────────────────────────
 
   // calendar
   const year=calDate.getFullYear(), month=calDate.getMonth();
@@ -587,7 +511,6 @@ function App(){
               React.createElement('span',null,'Вага'),
               React.createElement('span',null,''),
               React.createElement('span',null,'Повтори'),
-              React.createElement('span',null,''),
               React.createElement('span',null,'')
             ),
             ex.sets.map((s,si)=>{
@@ -597,7 +520,6 @@ function App(){
                 React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:(settings.showPrevPlaceholder !== false && s.prevWeight) ? s.prevWeight : 'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
                 React.createElement('div', {style:{color:'var(--text3)', fontSize:'12px', fontWeight:'700', textAlign:'center', marginTop:'2px'}}, '✕'),
                 React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:(settings.showPrevPlaceholder !== false && s.prevReps) ? s.prevReps : '12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
-                si>0?React.createElement('button',{className:'timer-btn-inline',onClick:()=>setShowTimerPopup({ei,si})},React.createElement(TimerIcon,{size:14})):React.createElement('div'),
                 si>0?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},React.createElement(XIcon)):React.createElement('div')
               );
             }),
@@ -1420,12 +1342,7 @@ function App(){
   // ─── MAIN RENDER ───────────────────────────────────────────────
   return React.createElement('div',{id:'app-root'},
     React.createElement('div',{className:'page'},
-      timerEnd ? React.createElement('div',{className:'app-header',style:{padding:0}},
-        React.createElement('div',{className:'timer-header'},
-          React.createElement('div',{className:'timer-text'},React.createElement(HourglassIcon, {size:20}), ' ', fmtTimer(timeLeft)),
-          React.createElement('button',{className:'timer-cancel',onClick:()=>setTimerEnd(null)},React.createElement(XIcon))
-        )
-      ) : React.createElement('div',{className:'app-header'},
+      React.createElement('div',{className:'app-header'},
         React.createElement('div',{className:'app-logo'},
           React.createElement('div',{className:'logo-icon', onClick:()=>setAdminTaps(p=>({...p, logo: true})), style:{cursor:'pointer', background:'none', padding:0}},
             React.createElement('img', {src: 'assets/icon_book.png', style: {width: '48px', height: '48px', borderRadius: '12px'}})
@@ -1471,38 +1388,7 @@ function App(){
       renderAdminModal(),
       renderMuscleModal(),
       renderEditModal(),
-      renderConfirmModal(),
-      showTimerPopup && React.createElement('div',{className:'cc-overlay',onClick:()=>setShowTimerPopup(false)},
-        React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation()},
-          React.createElement('div',{className:'cc-header'},
-            React.createElement('div',{className:'cc-title'},React.createElement('div', {style:{display:'flex',alignItems:'center',gap:'8px'}}, React.createElement(TimerIcon, {size:18}), 'Таймер відпочинку')),
-            React.createElement('button',{className:'stats-close',onClick:()=>setShowTimerPopup(false)},React.createElement(XIcon))
-          ),
-          React.createElement('div',{className:'timer-popup-grid'},
-            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(60)},'1 хв'),
-            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(90)},'1.5 хв'),
-            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(120)},'2 хв'),
-            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(180)},'3 хв'),
-            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(240)},'4 хв'),
-            React.createElement('button',{className:'timer-preset',onClick:()=>startTimer(300)},'5 хв'),
-            React.createElement('div',{className:'timer-custom'},
-              React.createElement('div',{className:'timer-wheels'},
-                React.createElement('select',{className:'timer-wheel',value:timerCustomMin,onChange:e=>setTimerCustomMin(Number(e.target.value))},
-                  Array.from({length:11}).map((_,i)=>React.createElement('option',{key:i,value:i},i+' хв'))
-                ),
-                React.createElement('select',{className:'timer-wheel',value:timerCustomSec,onChange:e=>setTimerCustomSec(Number(e.target.value))},
-                  [0,15,30,45].map(s=>React.createElement('option',{key:s,value:s},s+' сек'))
-                )
-              ),
-              React.createElement('button',{onClick:()=>{
-                const m = parseInt(timerCustomMin)||0;
-                const s = parseInt(timerCustomSec)||0;
-                if(m > 0 || s > 0) startTimer(m * 60 + s);
-              }},'Старт')
-            )
-          )
-        )
-      )
+      renderConfirmModal()
   );
 }
 
