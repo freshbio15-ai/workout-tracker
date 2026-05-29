@@ -203,10 +203,10 @@ body {
 .add-muscle-btn:active{transform:scale(.85)}
 
 /* ===== EMOJI MUSCLE SELECTOR ===== */
-.emoji-muscle-row{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
-.emoji-muscle-btn{width:36px;height:36px;border-radius:9px;background:var(--bg3);border:1.5px solid var(--border);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;padding:0;overflow:hidden}
+.emoji-muscle-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.emoji-muscle-btn{height:32px;border-radius:9px;background:var(--bg3);border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;padding:0 10px;overflow:visible;white-space:nowrap;color:var(--text2);font-family:inherit}
 .emoji-muscle-btn:active{transform:scale(.85)}
-.emoji-muscle-btn.active{background:linear-gradient(135deg,rgba(124,58,237,.2),rgba(124,58,237,.1));border-color:var(--accent);box-shadow:0 0 8px rgba(124,58,237,.3)}
+.emoji-muscle-btn.active{background:linear-gradient(135deg,rgba(124,58,237,.25),rgba(109,40,217,.15));border-color:var(--accent);color:#c4b5fd;box-shadow:0 0 8px rgba(124,58,237,.25)}
 .muscle-btn-icon{width:36px;height:36px;object-fit:cover;transform:scale(1.25); mix-blend-mode: screen;}
 .inline-muscle-icon{width:24px;height:24px;object-fit:cover;border-radius:4px;overflow:hidden; mix-blend-mode: screen;}
 .mt-icon{width:40px;height:40px;object-fit:cover;transform:scale(1.25)}
@@ -386,21 +386,7 @@ body {
   align-items: center;
   gap: 12px;
 }
-.mt-emoji {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.mt-emoji img {
-  width: 20px;
-  height: 20px;
-}
+
 .mt-bar-container {
   flex: 1;
   display: flex;

@@ -1,23 +1,47 @@
 const { useState, useEffect, useRef, useCallback } = React;
 
+// ── Текстові бейджики замість іконок ─────────────────────────────────
+function _badge(label, s, c) {
+  const isSmall = s <= 20;
+  return React.createElement('div', {
+    style: {
+      borderRadius: '6px',
+      background: 'rgba(255,255,255,0.07)',
+      border: '1px solid rgba(255,255,255,0.13)',
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: isSmall ? '9px' : '11px', fontWeight: 700, letterSpacing: '0.03em',
+      color: c || 'currentColor', lineHeight: 1,
+      fontFamily: 'inherit', userSelect: 'none',
+      padding: isSmall ? '3px 5px' : '0 6px', whiteSpace: 'nowrap'
+    }
+  }, label);
+}
+
 const MuscleIcons = {
-  chest: (s=32) => React.createElement('img',{src:'assets/icon_chest.png', style:{width:s,height:s,objectFit:'contain'}}),
-  back: (s=32) => React.createElement('img',{src:'assets/icon_back.png', style:{width:s,height:s,objectFit:'contain'}}),
-  abs: (s=32) => React.createElement('img',{src:'assets/icon_abs.png', style:{width:s,height:s,objectFit:'contain'}}),
-  legs: (s=32) => React.createElement('img',{src:'assets/icon_legs.png', style:{width:s,height:s,objectFit:'contain'}}),
-  glutes: (s=32) => React.createElement('img',{src:'assets/icon_legs.png', style:{width:s,height:s,objectFit:'contain'}}),
-  shoulders: (s=32) => React.createElement('img',{src:'assets/icon_shoulders.png', style:{width:s,height:s,objectFit:'contain'}}),
-  biceps: (s=32) => React.createElement('img',{src:'assets/icon_biceps.png', style:{width:s,height:s,objectFit:'contain'}})
+  chest:     (s=32, c) => _badge('Груди',       s, c),
+  back:      (s=32, c) => _badge('Спина',       s, c),
+  legs:      (s=32, c) => _badge('Ноги',        s, c),
+  shoulders: (s=32, c) => _badge('Дельти',      s, c),
+  triceps:   (s=32, c) => _badge('Трицепс',     s, c),
+  biceps:    (s=32, c) => _badge('Біцепс',      s, c),
+  calves:    (s=32, c) => _badge('Ікри',        s, c),
+  traps:     (s=32, c) => _badge('Трапеція',    s, c),
+  forearms:  (s=32, c) => _badge('Передпліччя', s, c),
+  // додатково для секції вимірювань
+  abs:       (s=32, c) => _badge('Прес',        s, c),
+  glutes:    (s=32, c) => _badge('Ягодичні',    s, c),
 };
 
 const MUSCLES = [
-  {id:'chest',icon:'chest',label:'Груди'},
-  {id:'back',icon:'back',label:'Спина'},
-  {id:'legs',icon:'legs',label:'Ноги'},
-  {id:'shoulders',icon:'shoulders',label:'Плечі'},
-  {id:'biceps',icon:'biceps',label:'Біцепс'},
-  {id:'triceps',icon:'biceps',label:'Тріцепс'},
-  {id:'abs',icon:'abs',label:'Прес'},
+  {id:'chest',     icon:'chest',     label:'Груди'},
+  {id:'back',      icon:'back',      label:'Спина'},
+  {id:'legs',      icon:'legs',      label:'Ноги'},
+  {id:'shoulders', icon:'shoulders', label:'Дельти'},
+  {id:'triceps',   icon:'triceps',   label:'Трицепс'},
+  {id:'biceps',    icon:'biceps',    label:'Біцепс'},
+  {id:'calves',    icon:'calves',    label:'Ікри'},
+  {id:'traps',     icon:'traps',     label:'Трапеція'},
+  {id:'forearms',  icon:'forearms',  label:'Передпліччя'},
 ];
 
 const STORAGE = 'gymbook-data';
@@ -126,7 +150,7 @@ function buildGrid(y,m){const f=new Date(y,m,1);const dow=f.getDay();const days=
 
 function calcTonnage(workout){
   return workout.exercises.reduce((a,ex)=>a+ex.sets.reduce((b,s)=>{
-    const w=s.bw?Number(s.weight)||0:Number(s.weight)||0;
+    const w=Number(s.weight)||0;
     return b+(Number(s.reps)||0)*w;
   },0),0);
 }
@@ -180,15 +204,18 @@ function App(){
   const [showMuscleModal, setShowMuscleModal] = useState(false);
 
   const MUSCLE_MEASUREMENTS = [
-    {label:'Груди', icon:'chest'},
-    {label:'Спина', icon:'back'},
-    {label:'Талія', icon:'abs'},
-    {label:'Квадри лівий', icon:'legs'},
-    {label:'Квадри правий', icon:'legs'},
-    {label:'Ягодичні', icon:'glutes'},
-    {label:'Плечі', icon:'shoulders'},
-    {label:'Біц правий', icon:'biceps'},
-    {label:'Біц лівий', icon:'biceps'}
+    {label:'Груди',          icon:'chest'},
+    {label:'Спина',          icon:'back'},
+    {label:'Талія',          icon:'abs'},
+    {label:'Квадри лівий',   icon:'legs'},
+    {label:'Квадри правий',  icon:'legs'},
+    {label:'Ягодичні',       icon:'glutes'},
+    {label:'Плечі',          icon:'shoulders'},
+    {label:'Біц правий',     icon:'biceps'},
+    {label:'Біц лівий',      icon:'biceps'},
+    {label:'Ікри лівий',     icon:'calves'},
+    {label:'Ікри правий',    icon:'calves'},
+    {label:'Передпліччя',    icon:'forearms'},
   ];
 
   const [confirmAction, setConfirmAction] = useState(null); // {title, onConfirm}
@@ -410,10 +437,6 @@ function App(){
       return {...p, muscle: newM};
     });
   }
-  function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
-  function setExMuscle(ei,m){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,muscle:e.muscle===m?'':m}:e)}))}
-
-
   function saveDay(){
     if(!draft)return;
     const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(getLatestWeight())||0:Number(s.weight)||0,bw:!!s.bw,rest:Number(s.rest)||0}))})).filter(e=>e.sets.length>0)};
@@ -823,7 +846,6 @@ function App(){
                 const t = stat.tonnage;
                 const pct = Math.max(5, Math.round((t / maxMuscleTonnage) * 100)); // min 5% for visibility
                 return React.createElement('div',{key:key,className:'mt-row'},
-                  React.createElement('div',{className:'mt-emoji'}, MuscleIcons[stat.icon] ? MuscleIcons[stat.icon](20) : null),
                   React.createElement('div',{className:'mt-bar-container'},
                     React.createElement('div',{className:'mt-bar-header'},
                       React.createElement('span',{className:'mt-name'},stat.label),
@@ -862,7 +884,6 @@ function App(){
                 const mg = MUSCLES.find(e=>e.id===(ex.muscle||''));
                 return React.createElement('div',{key:i,className:'hc-ex'},
                   React.createElement('div',{className:'hc-ex-left'},
-                    (mg && MuscleIcons[mg.icon]) ? MuscleIcons[mg.icon](14) : null,
                     ex.name + (ex.sets[0]&&ex.sets[0].bw?' (СВ)':'')
                   ),
                   React.createElement('div',{className:'hc-ex-right'},
