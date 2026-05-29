@@ -496,8 +496,7 @@ function App(){
               MUSCLES.map(mg=>React.createElement('button',{
                 key:mg.id,
                 className:'emoji-muscle-btn'+(ex.muscle===mg.id?' active':''),
-                onClick:()=>setExMuscle(ei,mg.id),
-                title:mg.label
+                onClick:()=>setExMuscle(ei,mg.id)
               }, mg.label))
             ),
             // "Минулого разу" hint
