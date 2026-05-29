@@ -328,14 +328,17 @@ function App(){
   function rmEx(ei){setDraft(p=>({...p,exercises:p.exercises.filter((_,i)=>i!==ei)}))}
 
   function toggleBW(ei){
-    const latestW = getLatestWeight();
-    if(!latestW){flash('Вкажи свою вагу в Аналітиці');setTab('analytics');return}
-    setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>{
-      if(i!==ei) return e;
-      const allBw = e.sets.every(s=>s.bw);
-      const newBw = !allBw;
-      return {...e, sets: e.sets.map(s=>({...s, bw: newBw, weight: newBw ? latestW : ''}))}
-    })}));
+    const ex = draft.exercises[ei];
+    const allBw = ex.sets.every(s=>s.bw);
+    const newBw = !allBw;
+    
+    if (newBw) {
+      const latestW = getLatestWeight();
+      if(!latestW){flash('Вкажи свою вагу в Аналітиці');setTab('analytics');return}
+      setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e, sets: e.sets.map(s=>({...s, bw: newBw, weight: latestW}))}:e)}));
+    } else {
+      setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e, sets: e.sets.map(s=>({...s, bw: newBw, weight: ''}))}:e)}));
+    }
   }
 
   function setMuscle(m){
