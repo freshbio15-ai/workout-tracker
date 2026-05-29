@@ -665,7 +665,6 @@ function App(){
                 React.createElement('th',null,'Вага'),
                 React.createElement('th',null,''),
                 React.createElement('th',null,'Повт.'),
-                React.createElement('th',null,'Відп.'),
                 React.createElement('th',null,'Об\'єм')
               )
             ),
@@ -675,7 +674,6 @@ function App(){
                 React.createElement('td',null,s.bw?'СВ ('+s.weight+'кг)':s.weight+' кг'),
                 React.createElement('td',{style:{color:'var(--text3)', fontSize:'11px', textAlign:'center', fontWeight:'700', padding:'0'}},'✕'),
                 React.createElement('td',null,s.reps),
-                React.createElement('td',{style:{color:'var(--text2)'}},j===0 ? '' : (s.rest?fmtTimer(s.rest):'-')),
                 React.createElement('td',{className:'detail-vol'},Math.round((Number(s.reps)||0)*(Number(s.weight)||0))+' кг')
               ))
             )
