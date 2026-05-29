@@ -564,14 +564,14 @@ function App(){
               React.createElement('input',{className:'ex-name-input',placeholder:'Назва вправи…',value:ex.name,onChange:e=>setExName(ei,e.target.value)}),
               draft.exercises.length>1&&React.createElement('button',{className:'ex-remove-btn',onClick:()=>rmEx(ei)},React.createElement(XIcon))
             ),
-            // emoji muscle selector per exercise
+            // muscle selector per exercise
             React.createElement('div',{className:'emoji-muscle-row'},
               MUSCLES.map(mg=>React.createElement('button',{
                 key:mg.id,
                 className:'emoji-muscle-btn'+(ex.muscle===mg.id?' active':''),
                 onClick:()=>setExMuscle(ei,mg.id),
                 title:mg.label
-              }, MuscleIcons[mg.icon] ? MuscleIcons[mg.icon](32) : null))
+              }, mg.label))
             ),
             // "Минулого разу" hint
             
