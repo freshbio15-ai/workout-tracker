@@ -344,7 +344,7 @@ function App(){
   function setMuscle(m){
     setDraft(p=>{
       const newM = p.muscle === m ? '' : m;
-      const isUntouched = p.exercises.every(ex => ex.sets.every(s => !Number(s.reps) && !Number(s.weight)));
+      const isUntouched = p.exercises.every(ex => ex.sets.every(s => s.reps === '' && s.weight === ''));
       
       if(isUntouched){
         if(newM === '') {
