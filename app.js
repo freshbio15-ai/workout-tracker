@@ -476,15 +476,15 @@ function App(){
         ),
         React.createElement('div',{className:'day-panel-body'},
           React.createElement('div',{className:'muscle-row'},
-            (settings.muscles||[]).filter(m => !(settings.hiddenMuscles||[]).includes(m)).map(m=>React.createElement('button',{key:m,className:'muscle-tag'+(draft.muscle===m?' active':''),onClick:()=>setMuscle(m)},
+            (settings.muscles||[]).map(m=>React.createElement('button',{key:m,className:'muscle-tag'+(draft.muscle===m?' active':''),onClick:()=>setMuscle(m)},
               m,
-              React.createElement('span',{className:'chip-del',onClick:e=>{e.stopPropagation();setSettings(s=>({...s,hiddenMuscles:[...(s.hiddenMuscles||[]),m]}));if(draft.muscle===m)setMuscle('')}},React.createElement(XIcon))
+              React.createElement('span',{className:'chip-del',onClick:e=>{e.stopPropagation();setSettings(s=>({...s,muscles:s.muscles.filter(x=>x!==m)}));if(draft.muscle===m)setMuscle('')}},React.createElement(XIcon))
             )),
             React.createElement('div',{className:'add-muscle-wrap'},
               React.createElement('input',{className:'add-muscle-input',placeholder:'Назва…',value:newMuscle,onChange:e=>setNewMuscle(e.target.value),
-                onKeyDown:e=>{if(e.key==='Enter'&&newMuscle.trim()){setSettings(s=>({...s,muscles:[...new Set([...(s.muscles||[]),newMuscle.trim()])],hiddenMuscles:(s.hiddenMuscles||[]).filter(x=>x!==newMuscle.trim())}));setNewMuscle('')}}
+                onKeyDown:e=>{if(e.key==='Enter'&&newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}
               }),
-              React.createElement('button',{className:'add-muscle-btn',onClick:()=>{if(newMuscle.trim()){setSettings(s=>({...s,muscles:[...new Set([...(s.muscles||[]),newMuscle.trim()])],hiddenMuscles:(s.hiddenMuscles||[]).filter(x=>x!==newMuscle.trim())}));setNewMuscle('')}}},React.createElement(PlusIcon)))
+              React.createElement('button',{className:'add-muscle-btn',onClick:()=>{if(newMuscle.trim()){setSettings(s=>({...s,muscles:[...(s.muscles||[]),newMuscle.trim()]}));setNewMuscle('')}}},React.createElement(PlusIcon)))
           ),
           draft.exercises.map((ex,ei)=>React.createElement('div',{key:ei,className:'exercise-block'},
             React.createElement('div',{className:'ex-name-row'},
@@ -1031,25 +1031,6 @@ function App(){
           React.createElement('label',{style:{display:'flex',alignItems:'center',gap:'8px',cursor:'pointer',marginBottom:'4px'}},
             React.createElement('input',{type:'checkbox',checked:settings.showPrevPlaceholder!==false,onChange:e=>setSettings(s=>({...s,showPrevPlaceholder:e.target.checked}))}),
             React.createElement('span',{style:{fontSize:'14px',color:'var(--text2)'}},'Показувати попередній результат (як підказку)')
-          )
-        ),
-        // programs management
-        React.createElement('div',{className:'settings-card'},
-          React.createElement('h3',null,'📝 Мої програми'),
-          React.createElement('p',null,'Керування вашими збереженими програмами тренувань.'),
-          React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'8px',marginTop:'12px'}},
-            (settings.muscles||[]).map(m=>{
-              const isHidden = (settings.hiddenMuscles||[]).includes(m);
-              return React.createElement('div',{key:m,style:{display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg4)',padding:'10px 12px',borderRadius:'8px',border:'1px solid var(--border)'}},
-                React.createElement('span',{style:{color:isHidden?'var(--text3)':'var(--text1)',textDecoration:isHidden?'line-through':'none',fontWeight:'600'}},m),
-                React.createElement('div',{style:{display:'flex',gap:'8px'}},
-                  isHidden ? React.createElement('button',{className:'save-btn',style:{padding:'4px 10px',fontSize:'12px',background:'var(--bg3)',color:'var(--text1)',border:'1px solid var(--border)'},onClick:()=>setSettings(s=>({...s,hiddenMuscles:s.hiddenMuscles.filter(x=>x!==m)}))},'Повернути')
-                           : React.createElement('button',{className:'cal-arrow',style:{width:'auto',padding:'4px 10px',fontSize:'12px'},onClick:()=>setSettings(s=>({...s,hiddenMuscles:[...(s.hiddenMuscles||[]),m]}))},'Сховати'),
-                  React.createElement('button',{className:'cal-arrow',style:{width:'auto',padding:'4px 10px',fontSize:'12px',color:'var(--red)'},onClick:()=>{if(confirm('Видалити назавжди?'))setSettings(s=>({...s,muscles:s.muscles.filter(x=>x!==m),hiddenMuscles:(s.hiddenMuscles||[]).filter(x=>x!==m)}))}},'Видалити')
-                )
-              );
-            }),
-            (settings.muscles||[]).length===0 && React.createElement('div',{style:{color:'var(--text3)',fontSize:'13px',textAlign:'center',padding:'8px'}},'У вас ще немає збережених програм.')
           )
         ),
         React.createElement('div',{className:'settings-card', style:{display:'flex',gap:'16px',alignItems:'center'}},
