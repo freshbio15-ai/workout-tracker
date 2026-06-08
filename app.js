@@ -350,6 +350,24 @@ function App(){
         if(newM === '') {
           return {...p, muscle: newM, exercises: [mkEx()]};
         } else {
+          // First try dedicated template for this muscle group
+          const tmpl = (settings.templates||{})[newM];
+          if(tmpl && tmpl.length > 0){
+            // Find last workout for prev values hint
+            const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
+            const newExs = tmpl.map(tex=>{
+              const prevEx = lastW && lastW[1].exercises.find(e=>e.name===tex.name);
+              return {
+                name: tex.name, muscle: tex.muscle||'',
+                sets: tex.sets.map((ts, si)=>{
+                  const prevSet = prevEx && prevEx.sets[si];
+                  return {reps:'', weight:'', bw:!!ts.bw, prevReps:prevSet?prevSet.reps:'', prevWeight:prevSet?prevSet.weight:''};
+                })
+              };
+            });
+            return {...p, muscle: newM, exercises: newExs};
+          }
+          // Fall back to history
           const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
           if(lastW){
             const newExs = lastW[1].exercises.map(ex=>({
@@ -369,6 +387,16 @@ function App(){
     const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(getLatestWeight())||0:Number(s.weight)||0,bw:!!s.bw,rest:Number(s.rest)||0}))}))};
     if(!cl.exercises.length)return;
     setData(p=>({...p,[selected]:cl}));
+    // Auto-save template for this muscle group
+    if(draft.muscle){
+      const templateExs = draft.exercises.filter(e=>e.name.trim()).map(e=>({
+        name: e.name.trim(), muscle: e.muscle||'',
+        sets: e.sets.length > 0 ? e.sets.map(s=>({bw:!!s.bw})) : [{bw:false}]
+      }));
+      if(templateExs.length > 0){
+        setSettings(s=>({...s, templates:{...(s.templates||{}), [draft.muscle]:templateExs}}));
+      }
+    }
     flash('Збережено!');
   }
 
