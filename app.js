@@ -342,45 +342,52 @@ function App(){
   }
 
   function setMuscle(m){
-    setDraft(p=>{
-      const newM = p.muscle === m ? '' : m;
-      const isUntouched = p.exercises.every(ex => ex.sets.every(s => s.reps === '' && s.weight === ''));
-      
-      if(isUntouched){
-        if(newM === '') {
-          return {...p, muscle: newM, exercises: [mkEx()]};
-        } else {
-          // First try dedicated template for this muscle group
-          const tmpl = (settings.templates||{})[newM];
-          if(tmpl && tmpl.length > 0){
-            // Find last workout for prev values hint
-            const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
-            const newExs = tmpl.map(tex=>{
-              const prevEx = lastW && lastW[1].exercises.find(e=>e.name===tex.name);
-              return {
-                name: tex.name, muscle: tex.muscle||'',
-                sets: tex.sets.map((ts, si)=>{
-                  const prevSet = prevEx && prevEx.sets[si];
-                  return {reps:'', weight:'', bw:!!ts.bw, prevReps:prevSet?prevSet.reps:'', prevWeight:prevSet?prevSet.weight:''};
-                })
-              };
-            });
-            return {...p, muscle: newM, exercises: newExs};
-          }
-          // Fall back to history
-          const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
-          if(lastW){
-            const newExs = lastW[1].exercises.map(ex=>({
-              name: ex.name, muscle: ex.muscle||'', sets: ex.sets.map(s=>({reps:'', weight:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
-            }));
-            return {...p, muscle: newM, exercises: newExs};
-          } else {
-            return {...p, muscle: newM, exercises: [mkEx()]};
-          }
-        }
+    const newM = draft.muscle === m ? '' : m;
+
+    // Auto-save current exercises as template for the outgoing muscle group
+    if(draft.muscle && draft.muscle !== newM){
+      const outgoing = draft.exercises.filter(e=>e.name.trim()).map(e=>({
+        name: e.name.trim(), muscle: e.muscle||'',
+        sets: e.sets.length > 0 ? e.sets.map(s=>({bw:!!s.bw})) : [{bw:false}]
+      }));
+      if(outgoing.length > 0){
+        setSettings(s=>({...s, templates:{...(s.templates||{}), [draft.muscle]:outgoing}}));
       }
-      return {...p, muscle: newM};
-    });
+    }
+
+    if(newM === ''){
+      setDraft(p=>({...p, muscle:'', exercises:[mkEx()]}));
+      return;
+    }
+
+    // Load incoming muscle's dedicated template
+    const tmpl = (settings.templates||{})[newM];
+    if(tmpl && tmpl.length > 0){
+      const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
+      const newExs = tmpl.map(tex=>{
+        const prevEx = lastW && lastW[1].exercises.find(e=>e.name===tex.name);
+        return {
+          name: tex.name, muscle: tex.muscle||'',
+          sets: tex.sets.map((ts,si)=>{
+            const prevSet = prevEx && prevEx.sets[si];
+            return {reps:'', weight:'', bw:!!ts.bw, prevReps:prevSet?prevSet.reps:'', prevWeight:prevSet?prevSet.weight:''};
+          })
+        };
+      });
+      setDraft(p=>({...p, muscle:newM, exercises:newExs}));
+      return;
+    }
+
+    // Fall back to history if no dedicated template yet
+    const lastW = Object.entries(data).sort((a,b)=>b[0].localeCompare(a[0])).find(([k,w])=>k!==selected && w.muscle===newM);
+    if(lastW){
+      const newExs = lastW[1].exercises.map(ex=>({
+        name:ex.name, muscle:ex.muscle||'', sets:ex.sets.map(s=>({reps:'', weight:'', bw:s.bw, prevReps:s.reps, prevWeight:s.weight}))
+      }));
+      setDraft(p=>({...p, muscle:newM, exercises:newExs}));
+    } else {
+      setDraft(p=>({...p, muscle:newM, exercises:[mkEx()]}));
+    }
   }
   function saveDay(){
     if(!draft)return;
