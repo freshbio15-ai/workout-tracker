@@ -366,7 +366,7 @@ function App(){
   }
   function saveDay(){
     if(!draft)return;
-    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(getLatestWeight())||0:Number(s.weight)||0,bw:!!s.bw,rest:Number(s.rest)||0}))})).filter(e=>e.sets.length>0)};
+    const cl={muscle:draft.muscle,exercises:draft.exercises.filter(e=>e.name.trim()).map(e=>({name:e.name.trim(),muscle:e.muscle||'',sets:e.sets.filter(s=>s.reps!==''||s.weight!==''||s.bw).map(s=>({reps:Number(s.reps)||0,weight:s.bw?Number(getLatestWeight())||0:Number(s.weight)||0,bw:!!s.bw,rest:Number(s.rest)||0}))}))};
     if(!cl.exercises.length)return;
     setData(p=>({...p,[selected]:cl}));
     flash('Збережено!');
@@ -548,7 +548,8 @@ function App(){
     const w=data[k];
     if(!w)return null;
     const ton=calcTonnage(w);
-    const exTons=w.exercises.map(ex=>({name:ex.name,ton:calcExTonnage(ex),sets:ex.sets}));
+    const validExercises = w.exercises.filter(ex=>ex.sets.length>0);
+    const exTons=validExercises.map(ex=>({name:ex.name,ton:calcExTonnage(ex),sets:ex.sets}));
     const maxExTon=Math.max(...exTons.map(e=>e.ton),1);
 
     return React.createElement(React.Fragment,null,
@@ -565,7 +566,7 @@ function App(){
         React.createElement('div',{className:'tonnage-value'},ton>1000?(ton/1000).toFixed(1)+' т':ton+' кг'),
         
         React.createElement('div',{className:'tonnage-row'},
-          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},w.exercises.length),React.createElement('div',{className:'tonnage-item-lbl'},'Вправ')),
+          React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},validExercises.length),React.createElement('div',{className:'tonnage-item-lbl'},'Вправ')),
           React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},w.exercises.reduce((a,e)=>a+e.sets.length,0)),React.createElement('div',{className:'tonnage-item-lbl'},'Підходів')),
           React.createElement('div',{className:'tonnage-item'},React.createElement('div',{className:'tonnage-item-val'},w.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0),0),0)),React.createElement('div',{className:'tonnage-item-lbl'},'Повторень'))
         )
@@ -585,7 +586,7 @@ function App(){
       ),
       // detailed exercises
       
-      w.exercises.map((ex,i)=>{
+      validExercises.map((ex,i)=>{
         const exTon=calcExTonnage(ex);
         
         function analyzeDrops(sets) {
@@ -786,8 +787,9 @@ function App(){
           React.createElement('div',{className:'section-label'},'Тренування ('+history.length+')'),
           React.createElement('div',{className:'history-list'},history.map(([k,w])=>{
             const ton = calcTonnage(w);
-            const totalEx = w.exercises.length;
-            const totalSets = w.exercises.reduce((a,e)=>a+e.sets.length,0);
+            const validExercises = w.exercises.filter(ex=>ex.sets.length>0);
+            const totalEx = validExercises.length;
+            const totalSets = validExercises.reduce((a,e)=>a+e.sets.length,0);
             return React.createElement('div',{key:k,className:'history-card',onClick:()=>setHistoryDetail(k)},
               React.createElement('div',{className:'hc-top'},
                 React.createElement('div',null,
@@ -801,7 +803,7 @@ function App(){
                 React.createElement('span',{className:'hc-stat'}, React.createElement(RefreshIcon, {size:12, className:'hc-stat-icon'}), React.createElement('strong',null,totalSets),'підх.'),
                 React.createElement('span',{className:'hc-stat'}, React.createElement(WeightIcon, {size:12, className:'hc-stat-icon'}), React.createElement('strong',null,ton>1000?(ton/1000).toFixed(1)+'т':ton+'кг'))
               ),
-              React.createElement('div',{className:'hc-exercises'},w.exercises.map((ex,i)=>{
+              React.createElement('div',{className:'hc-exercises'},validExercises.map((ex,i)=>{
                 const et = calcExTonnage(ex);
                 const mg = MUSCLES.find(e=>e.id===(ex.muscle||''));
                 return React.createElement('div',{key:i,className:'hc-ex'},
