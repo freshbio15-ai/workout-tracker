@@ -1213,9 +1213,9 @@ function App(){
 
   function renderMuscleModal(){
     if(!showMuscleModal) return null;
-    return React.createElement('div', {className:'cc-overlay', onClick:()=>setShowMuscleModal(false)},
+    return React.createElement('div', {className:'cc-overlay bottom', onClick:()=>setShowMuscleModal(false)},
       React.createElement('div', {className:'cc-modal', onClick:e=>e.stopPropagation(), style:{
-        position:'absolute', bottom:0, left:0, right:0, borderRadius:'24px 24px 0 0', 
+        maxWidth:'480px', borderRadius:'24px 24px 0 0',
         padding:'20px', background:'var(--bg1)', borderTop:'1px solid var(--border)',
         maxHeight:'70vh', overflowY:'auto'
       }},
