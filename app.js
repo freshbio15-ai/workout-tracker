@@ -308,7 +308,11 @@ function App(){
     else setDraft(mkDay());
   },[selected]);
 
-  function flash(m){clearTimeout(tRef.current);setToast(m);tRef.current=setTimeout(()=>setToast(null),1800)}
+  function flash(m, actionText=null, actionFn=null, duration=1800){
+    clearTimeout(tRef.current);
+    setToast({m, actionText, actionFn});
+    tRef.current=setTimeout(()=>setToast(null),duration);
+  }
 
   // ── Timer Logic Removed ────────────────────────────────────────
 
@@ -513,7 +517,18 @@ function App(){
           React.createElement('div',{className:'muscle-row'},
             (settings.muscles||[]).map(m=>React.createElement('button',{key:m,className:'muscle-tag'+(draft.muscle===m?' active':''),onClick:()=>setMuscle(m)},
               m,
-              React.createElement('span',{className:'chip-del',onClick:e=>{e.stopPropagation();setSettings(s=>({...s,muscles:s.muscles.filter(x=>x!==m)}));if(draft.muscle===m)setMuscle('')}},React.createElement(XIcon))
+              React.createElement('span',{className:'chip-del',onClick:e=>{
+                e.stopPropagation();
+                setSettings(s=>({...s, muscles:s.muscles.filter(x=>x!==m), deletedMuscles: [...(s.deletedMuscles||[]), m]}));
+                if(draft.muscle===m)setMuscle('');
+                flash('Шаблон видалено', 'Відновити', () => {
+                  setSettings(s=>({
+                    ...s, 
+                    muscles: [...(s.muscles||[]), m], 
+                    deletedMuscles: (s.deletedMuscles||[]).filter(x=>x!==m)
+                  }));
+                }, 5000);
+              }},React.createElement(XIcon))
             )),
             React.createElement('div',{className:'add-muscle-wrap'},
               React.createElement('input',{className:'add-muscle-input',placeholder:'Назва…',value:newMuscle,onChange:e=>setNewMuscle(e.target.value),
@@ -1079,6 +1094,22 @@ function App(){
           ),
           React.createElement('img', {src:'assets/icon_book.png', style:{width:'64px',height:'64px',borderRadius:'16px',boxShadow:'0 4px 12px rgba(0,0,0,0.3)', flexShrink:0}})
         ),
+        // deleted templates
+        (settings.deletedMuscles && settings.deletedMuscles.length > 0) && React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,'🗑 Видалені шаблони'),
+          React.createElement('p',null,'Випадково видалені шаблони тренувань можна відновити тут.'),
+          React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'8px',marginTop:'12px'}},
+            settings.deletedMuscles.map(m=>
+              React.createElement('div',{key:m,style:{display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg4)',padding:'10px 12px',borderRadius:'8px',border:'1px solid var(--border)'}},
+                React.createElement('span',{style:{color:'var(--text2)',textDecoration:'line-through',fontWeight:'600'}},m),
+                React.createElement('button',{className:'save-btn',style:{padding:'4px 10px',fontSize:'12px',background:'var(--bg3)',color:'var(--text1)',border:'1px solid var(--border)',width:'auto'},onClick:()=>{
+                  setSettings(s=>({...s, muscles: [...(s.muscles||[]), m], deletedMuscles: s.deletedMuscles.filter(x=>x!==m)}));
+                  flash('Шаблон відновлено');
+                }},'Відновити')
+              )
+            )
+          )
+        ),
         // admin panel
         ((adminTaps.logo && adminTaps.sync) || localStorage.getItem('override_uid')) && React.createElement('div',{className:'settings-card'},
           React.createElement('h3',null,'👑 Admin Panel'),
@@ -1418,7 +1449,13 @@ function App(){
         )
       )
     ),
-    toast&&React.createElement('div',{key:toast,className:'toast'},toast),
+    toast&&React.createElement('div',{key:toast.m || toast,className:'toast', style:{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'16px'}},
+      React.createElement('span', null, toast.m || toast),
+      toast.actionText && React.createElement('button', {
+        onClick: () => { toast.actionFn(); setToast(null); clearTimeout(tRef.current); },
+        style: {background:'var(--accent)', color:'#fff', border:'none', padding:'6px 12px', borderRadius:'8px', fontWeight:'700', fontSize:'13px', cursor:'pointer', whiteSpace:'nowrap'}
+      }, toast.actionText)
+    ),
       renderCustomPicker(),
       renderBwPicker(),
       renderMeasPicker(),
