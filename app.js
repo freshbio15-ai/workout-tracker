@@ -344,7 +344,11 @@ function App(){
 
   // draft ops
   function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
-  function setExMuscle(ei,m){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,muscle:e.muscle===m?'':m}:e)}))}
+  function setExMuscle(ei,m){
+    setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,muscle:e.muscle===m?'':m}:e)}));
+    // Restore hint to weight field after muscle click (blur from name input clears it)
+    setHintSet({ei, si:0, field:'weight'});
+  }
   function setField(ei,si,f,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>j!==si?s:{...s,[f]:v})})}))}
   function addSet(ei){
     setDraft(p=>{
@@ -406,6 +410,7 @@ function App(){
         };
       });
       setDraft(p=>({...p, muscle:newM, exercises:newExs}));
+      setHintSet({ei:0, si:0, field:'weight'});
       return;
     }
 
@@ -419,6 +424,8 @@ function App(){
     } else {
       setDraft(p=>({...p, muscle:newM, exercises:[mkEx()]}));
     }
+    // Restore hint to weight of first exercise after switching muscle group
+    setHintSet({ei:0, si:0, field:'weight'});
   }
   function saveDay(){
     if(!draft)return;
