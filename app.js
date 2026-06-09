@@ -155,13 +155,20 @@ function calcTonnage(workout){
   },0),0);
 }
 
+const THEMES = [
+  { id:'classic', name:'Classic',  accent:'#e4e4e7', dark:'#6d28d9', bg:'#000000' },
+  { id:'violet',  name:'Violet',   accent:'#a78bfa', dark:'#5b21b6', bg:'#07050f' },
+  { id:'crimson', name:'Crimson',  accent:'#fb7185', dark:'#9f1239', bg:'#0c0508' },
+  { id:'ocean',   name:'Ocean',    accent:'#38bdf8', dark:'#0369a1', bg:'#020b12' },
+  { id:'forest',  name:'Forest',   accent:'#4ade80', dark:'#15803d', bg:'#030b06' },
+];
+
 // ══════════════════════════════════════════════════════════════════
 function App(){
 
-
-
   const [data,setData]=useState(()=>load(STORAGE,{}));
   const [settings,setSettings]=useState(()=>load(SETTINGS_KEY,{userWeight:'',muscles:[]}));
+  const [showThemePicker, setShowThemePicker] = useState(false);
   const [newMuscle,setNewMuscle]=useState('');
   const [tab,setTab]=useState('calendar');
   const [calDate,setCalDate]=useState(new Date());
@@ -308,6 +315,17 @@ function App(){
     else setDraft(mkDay());
   },[selected]);
 
+  // Apply theme class to body
+  useEffect(()=>{
+    const t = settings.theme || 'classic';
+    document.body.className = document.body.className.replace(/theme-\w+/g,'').trim();
+    document.body.classList.add('theme-'+t);
+  },[settings.theme]);
+
+  // Show theme picker for new users (no theme set yet)
+  useEffect(()=>{
+    if(settings.theme === undefined) setShowThemePicker(true);
+  },[]);
   function flash(m, actionText=null, actionFn=null, duration=1800){
     clearTimeout(tRef.current);
     const id = Date.now();
@@ -1095,6 +1113,27 @@ function App(){
           ),
           React.createElement('img', {src:'assets/icon_book.png', style:{width:'64px',height:'64px',borderRadius:'16px',boxShadow:'0 4px 12px rgba(0,0,0,0.3)', flexShrink:0}})
         ),
+        // theme section
+        React.createElement('div',{className:'settings-card'},
+          React.createElement('h3',null,'🎨 Тема оформлення'),
+          React.createElement('p',null,'Підберіть кольорову гаму під свій настрій'),
+          React.createElement('div',{style:{display:'flex',gap:'8px',marginTop:'14px',flexWrap:'wrap'}},
+            THEMES.map(t=>
+              React.createElement('button',{key:t.id,onClick:()=>setSettings(s=>({...s,theme:t.id})),style:{
+                flex:'1 1 0', minWidth:'52px',
+                height:'44px', borderRadius:'10px', cursor:'pointer',
+                background:`linear-gradient(135deg,${t.accent},${t.dark})`,
+                border:`2px solid ${(settings.theme||'classic')===t.id?'#fff':'transparent'}`,
+                boxShadow:(settings.theme||'classic')===t.id?`0 0 0 1px ${t.accent},0 4px 12px rgba(0,0,0,.5)`:'none',
+                transition:'all .2s', position:'relative', display:'flex', alignItems:'center', justifyContent:'center'
+              }},
+                React.createElement('span',{style:{fontSize:'10px',fontWeight:'800',color:'#fff',textShadow:'0 1px 4px rgba(0,0,0,.6)'}},t.name),
+                (settings.theme||'classic')===t.id && React.createElement('div',{style:{position:'absolute',top:'-4px',right:'-4px',width:'14px',height:'14px',borderRadius:'50%',background:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'9px',color:'#000',fontWeight:'900',boxShadow:'0 1px 4px rgba(0,0,0,.5)'}},'✓')
+              )
+            )
+          ),
+          React.createElement('button',{onClick:()=>setShowThemePicker(true),style:{marginTop:'12px',width:'100%',padding:'9px',background:'var(--bg4)',border:'1px solid var(--border)',borderRadius:'10px',color:'var(--text2)',fontSize:'12px',fontWeight:'600',cursor:'pointer'}},'Детальний перегляд')
+        ),
         // deleted templates
         (settings.deletedMuscles && settings.deletedMuscles.length > 0) && React.createElement('div',{className:'settings-card'},
           React.createElement('h3',null,'🗑 Видалені шаблони'),
@@ -1239,6 +1278,45 @@ function App(){
             })
           )
         )
+      )
+    );
+  }
+
+  function renderThemePicker(isOnboarding=false){
+    if(!showThemePicker) return null;
+    const cur = settings.theme || 'classic';
+    return React.createElement('div',{className:'cc-overlay',onClick:isOnboarding?null:()=>setShowThemePicker(false),style:{zIndex:9999,flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'20px'}},
+      React.createElement('div',{onClick:e=>e.stopPropagation(),style:{width:'100%',maxWidth:'420px',background:'var(--bg2)',border:'1px solid var(--border)',borderRadius:'24px',padding:'28px 20px',boxShadow:'0 20px 60px rgba(0,0,0,.8)'}},
+        React.createElement('div',{style:{textAlign:'center',marginBottom:'6px',fontSize:'24px'}},'\uD83C\uDFA8'),
+        React.createElement('h2',{style:{textAlign:'center',fontSize:'20px',fontWeight:'800',marginBottom:'6px'}},isOnboarding?'Оберіть тему':'Тема оформлення'),
+        React.createElement('p',{style:{textAlign:'center',fontSize:'13px',color:'var(--text3)',marginBottom:'24px'}},isOnboarding?'Можна змінити пізніше в Налаштуваннях':'Ваш стиль — ваш вибір'),
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'12px',marginBottom:'20px'}},
+          THEMES.map(t=>
+            React.createElement('button',{key:t.id,onClick:()=>{setSettings(s=>({...s,theme:t.id}));},style:{
+              background:t.bg, border:`2px solid ${cur===t.id?t.accent:'transparent'}`,
+              borderRadius:'16px', padding:'16px 12px', cursor:'pointer',
+              outline: cur===t.id?`0 0 0 2px ${t.accent} inset`:'none',
+              transition:'all .2s', position:'relative', overflow:'hidden',
+              boxShadow: cur===t.id?`0 0 0 2px ${t.accent}, 0 8px 24px rgba(0,0,0,.5)`:'0 4px 12px rgba(0,0,0,.4)'
+            }},
+              React.createElement('div',{style:{display:'flex',gap:'5px',marginBottom:'10px'}},
+                React.createElement('div',{style:{flex:1,height:'10px',borderRadius:'5px',background:t.accent,opacity:0.9}}),
+                React.createElement('div',{style:{flex:1,height:'10px',borderRadius:'5px',background:t.dark,opacity:0.7}}),
+                React.createElement('div',{style:{width:'10px',height:'10px',borderRadius:'5px',background:'#ffffff',opacity:0.15}})
+              ),
+              React.createElement('div',{style:{display:'flex',gap:'5px',marginBottom:'10px'}},
+                React.createElement('div',{style:{height:'6px',width:'60%',borderRadius:'3px',background:'rgba(255,255,255,0.15)'}}),
+                React.createElement('div',{style:{height:'6px',flex:1,borderRadius:'3px',background:`${t.accent}44`}})
+              ),
+              React.createElement('div',{style:{height:'24px',borderRadius:'8px',background:`${t.accent}22`,border:`1px solid ${t.accent}44`,marginBottom:'8px'}}),
+              React.createElement('div',{style:{fontSize:'13px',fontWeight:'700',color:t.accent,textAlign:'left'}},t.name),
+              cur===t.id && React.createElement('div',{style:{position:'absolute',top:'8px',right:'8px',width:'18px',height:'18px',borderRadius:'50%',background:t.accent,display:'flex',alignItems:'center',justifyContent:'center',fontSize:'10px'}},'✓')
+            )
+          )
+        ),
+        isOnboarding
+          ? React.createElement('button',{onClick:()=>{if(!settings.theme)setSettings(s=>({...s,theme:'classic'}));setShowThemePicker(false);},style:{width:'100%',padding:'14px',background:`linear-gradient(135deg,${(THEMES.find(t=>t.id===(settings.theme||'classic'))||THEMES[0]).accent},${(THEMES.find(t=>t.id===(settings.theme||'classic'))||THEMES[0]).dark})`,border:'none',borderRadius:'12px',color:'#fff',fontSize:'15px',fontWeight:'700',cursor:'pointer'}},'Готово →')
+          : React.createElement('button',{onClick:()=>setShowThemePicker(false),style:{width:'100%',padding:'12px',background:'var(--bg4)',border:'1px solid var(--border)',borderRadius:'12px',color:'var(--text2)',fontSize:'14px',fontWeight:'600',cursor:'pointer'}},'Закрити')
       )
     );
   }
@@ -1465,7 +1543,9 @@ function App(){
       renderAdminModal(),
       renderMuscleModal(),
       renderEditModal(),
-      renderConfirmModal()
+      renderConfirmModal(),
+      renderThemePicker(settings.theme === undefined)
+
   );
 }
 
