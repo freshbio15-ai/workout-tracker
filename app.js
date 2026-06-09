@@ -234,6 +234,7 @@ function App(){
   const tRef=useRef(null);
   const saveTimer=useRef(null);
   const isFirstLoad=useRef(true);
+  const [hintSet, setHintSet] = useState(null); // {ei, si, field:'weight'|'reps'}
 
   // Check if a given weight is a PR for an exercise up to a certain date
   const checkPR = useCallback((exName, currentWeight, dateKey) => {
@@ -345,9 +346,16 @@ function App(){
   function setExName(ei,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,name:v}:e)}))}
   function setExMuscle(ei,m){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i===ei?{...e,muscle:e.muscle===m?'':m}:e)}))}
   function setField(ei,si,f,v){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.map((s,j)=>j!==si?s:{...s,[f]:v})})}))}
-  function addSet(ei){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:[...e.sets,mkSet()]})}))}
+  function addSet(ei){
+    setDraft(p=>{
+      const updated = p.exercises.map((e,i)=>i!==ei?e:{...e,sets:[...e.sets,mkSet()]});
+      const newSi = updated[ei].sets.length - 1;
+      setHintSet({ei, si:newSi, field:'weight'});
+      return {...p, exercises:updated};
+    });
+  }
   function rmSet(ei,si){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.filter((_,j)=>j!==si)})}))}
-  function addEx(){setDraft(p=>({...p,exercises:[...p.exercises,mkEx()]}))}
+  function addEx(){setDraft(p=>{const newEi=p.exercises.length;setHintSet({ei:newEi,si:0,field:'weight'});return {...p,exercises:[...p.exercises,mkEx()]}})}
   function rmEx(ei){setDraft(p=>({...p,exercises:p.exercises.filter((_,i)=>i!==ei)}))}
 
   function toggleBW(ei){
@@ -557,7 +565,11 @@ function App(){
           ),
           draft.exercises.map((ex,ei)=>React.createElement('div',{key:ei,className:'exercise-block'},
             React.createElement('div',{className:'ex-name-row'},
-              React.createElement('input',{className:'ex-name-input',placeholder:'Назва вправи…',value:ex.name,onChange:e=>setExName(ei,e.target.value)}),
+              React.createElement('input',{className:'ex-name-input'+(ex.name===''?' hint-name':''),placeholder:'Назва вправи…',value:ex.name,
+                onChange:e=>setExName(ei,e.target.value),
+                onFocus:()=>setHintSet({ei,si:0,field:'weight'}),
+                onBlur:()=>setHintSet(h=>h&&h.ei===ei&&h.field==='weight'?null:h)
+              }),
               draft.exercises.length>1&&React.createElement('button',{className:'ex-remove-btn',onClick:()=>rmEx(ei)},React.createElement(XIcon))
             ),
             // muscle selector per exercise
@@ -588,9 +600,17 @@ function App(){
               const isPR = !s.bw && s.weight && checkPR(ex.name, Number(s.weight), selected);
               return React.createElement('div',{key:si,className: si===0?'set-row set-row-first':'set-row'},
                 React.createElement('div',{className:'set-badge', style: isPR ? {boxShadow: '0 0 8px #10b981', color: '#10b981'} : {}}, si+1),
-                React.createElement('input',{className:'set-input',type:s.bw?'text':'number',inputMode:'decimal',placeholder:(settings.showPrevPlaceholder !== false && s.prevWeight) ? s.prevWeight : 'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)}}),
+                React.createElement('input',{className:'set-input'+(hintSet&&hintSet.ei===ei&&hintSet.si===si&&hintSet.field==='weight'?' hint-pulse':''),type:s.bw?'text':'number',inputMode:'decimal',placeholder:(settings.showPrevPlaceholder !== false && s.prevWeight) ? s.prevWeight : 'кг',value:s.bw?s.weight+' кг':s.weight,disabled:s.bw,
+                  onChange:e=>{setField(ei,si,'weight',e.target.value);setField(ei,si,'bw',false)},
+                  onFocus:()=>setHintSet({ei,si,field:'reps'}),
+                  onBlur:()=>setHintSet(h=>h&&h.ei===ei&&h.si===si&&h.field==='reps'?null:h)
+                }),
                 React.createElement('div', {style:{color:'var(--text3)', fontSize:'12px', fontWeight:'700', textAlign:'center', marginTop:'2px'}}, '✕'),
-                React.createElement('input',{className:'set-input',type:'number',inputMode:'numeric',placeholder:(settings.showPrevPlaceholder !== false && s.prevReps) ? s.prevReps : '12',value:s.reps,onChange:e=>setField(ei,si,'reps',e.target.value)}),
+                React.createElement('input',{className:'set-input'+(hintSet&&hintSet.ei===ei&&hintSet.si===si&&hintSet.field==='reps'?' hint-pulse':''),type:'number',inputMode:'numeric',placeholder:(settings.showPrevPlaceholder !== false && s.prevReps) ? s.prevReps : '12',value:s.reps,
+                  onChange:e=>setField(ei,si,'reps',e.target.value),
+                  onFocus:()=>setHintSet(null),
+                  onBlur:()=>setHintSet(null)
+                }),
                 si>0?React.createElement('button',{className:'set-del-btn',onClick:()=>rmSet(ei,si)},React.createElement(XIcon)):React.createElement('div')
               );
             }),
