@@ -310,8 +310,9 @@ function App(){
 
   function flash(m, actionText=null, actionFn=null, duration=1800){
     clearTimeout(tRef.current);
-    setToast({m, actionText, actionFn});
-    tRef.current=setTimeout(()=>setToast(null),duration);
+    const id = Date.now();
+    setToast({m, actionText, actionFn, id, duration});
+    tRef.current=setTimeout(()=>setToast(null), duration);
   }
 
   // ── Timer Logic Removed ────────────────────────────────────────
@@ -1102,7 +1103,7 @@ function App(){
             settings.deletedMuscles.map(m=>
               React.createElement('div',{key:m,style:{display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg4)',padding:'10px 12px',borderRadius:'8px',border:'1px solid var(--border)'}},
                 React.createElement('span',{style:{color:'var(--text2)',textDecoration:'line-through',fontWeight:'600'}},m),
-                React.createElement('button',{className:'save-btn',style:{padding:'4px 10px',fontSize:'12px',background:'var(--bg3)',color:'var(--text1)',border:'1px solid var(--border)',width:'auto'},onClick:()=>{
+                React.createElement('button',{style:{padding:'5px 12px',fontSize:'12px',fontWeight:'700',background:'rgba(74,222,128,0.12)',color:'#4ade80',border:'1px solid rgba(74,222,128,0.25)',borderRadius:'8px',cursor:'pointer',whiteSpace:'nowrap'},onClick:()=>{
                   setSettings(s=>({...s, muscles: [...(s.muscles||[]), m], deletedMuscles: s.deletedMuscles.filter(x=>x!==m)}));
                   flash('Шаблон відновлено');
                 }},'Відновити')
@@ -1449,12 +1450,14 @@ function App(){
         )
       )
     ),
-    toast&&React.createElement('div',{key:toast.m || toast,className:'toast', style:{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'16px'}},
+    toast&&React.createElement('div',{key:toast.id,className:'toast'+(toast.actionText?' toast-action':''), style:{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'16px', '--toast-dur': (toast.duration||1800)+'ms'}},
       React.createElement('span', null, toast.m || toast),
-      toast.actionText && React.createElement('button', {
-        onClick: () => { toast.actionFn(); setToast(null); clearTimeout(tRef.current); },
-        style: {background:'var(--accent)', color:'#fff', border:'none', padding:'6px 12px', borderRadius:'8px', fontWeight:'700', fontSize:'13px', cursor:'pointer', whiteSpace:'nowrap'}
-      }, toast.actionText)
+      toast.actionText && React.createElement(React.Fragment, null,
+        React.createElement('button', {
+          onClick: () => { toast.actionFn(); setToast(null); clearTimeout(tRef.current); },
+          style: {background:'rgba(139,27,50,0.85)',color:'#fca5a5',border:'1px solid rgba(220,80,100,0.35)',padding:'6px 12px',borderRadius:'8px',fontWeight:'700',fontSize:'13px',cursor:'pointer',whiteSpace:'nowrap',flexShrink:0}
+        }, toast.actionText)
+      )
     ),
       renderCustomPicker(),
       renderBwPicker(),
