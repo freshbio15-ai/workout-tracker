@@ -1132,24 +1132,29 @@ function App(){
               )
             )
           ),
-          React.createElement('button',{onClick:()=>setShowThemePicker(true),style:{marginTop:'12px',width:'100%',padding:'9px',background:'var(--bg4)',border:'1px solid var(--border)',borderRadius:'10px',color:'var(--text2)',fontSize:'12px',fontWeight:'600',cursor:'pointer'}},'Детальний перегляд')
         ),
+
         // deleted templates
         (settings.deletedMuscles && settings.deletedMuscles.length > 0) && React.createElement('div',{className:'settings-card'},
           React.createElement('h3',null,'🗑 Видалені шаблони'),
-          React.createElement('p',null,'Випадково видалені шаблони тренувань можна відновити тут.'),
-          React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'8px',marginTop:'12px'}},
+          React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'8px',marginTop:'8px'}},
             settings.deletedMuscles.map(m=>
-              React.createElement('div',{key:m,style:{display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg4)',padding:'10px 12px',borderRadius:'8px',border:'1px solid var(--border)'}},
-                React.createElement('span',{style:{color:'var(--text2)',textDecoration:'line-through',fontWeight:'600'}},m),
-                React.createElement('button',{style:{padding:'5px 12px',fontSize:'12px',fontWeight:'700',background:'rgba(74,222,128,0.12)',color:'#4ade80',border:'1px solid rgba(74,222,128,0.25)',borderRadius:'8px',cursor:'pointer',whiteSpace:'nowrap'},onClick:()=>{
-                  setSettings(s=>({...s, muscles: [...(s.muscles||[]), m], deletedMuscles: s.deletedMuscles.filter(x=>x!==m)}));
-                  flash('Шаблон відновлено');
-                }},'Відновити')
+              React.createElement('div',{key:m,style:{display:'flex',alignItems:'center',justifyContent:'space-between',background:'var(--bg4)',padding:'10px 12px',borderRadius:'8px',border:'1px solid var(--border)',gap:'8px'}},
+                React.createElement('span',{style:{color:'var(--text2)',textDecoration:'line-through',fontWeight:'600',flex:1}},m),
+                React.createElement('div',{style:{display:'flex',gap:'6px',alignItems:'center'}},
+                  React.createElement('button',{style:{padding:'5px 12px',fontSize:'12px',fontWeight:'700',background:'rgba(74,222,128,0.12)',color:'#4ade80',border:'1px solid rgba(74,222,128,0.25)',borderRadius:'8px',cursor:'pointer',whiteSpace:'nowrap'},onClick:()=>{
+                    setSettings(s=>({...s, muscles: [...(s.muscles||[]), m], deletedMuscles: s.deletedMuscles.filter(x=>x!==m)}));
+                    flash('Шаблон відновлено');
+                  }},'Відновити'),
+                  React.createElement('button',{style:{width:'28px',height:'28px',display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.2)',borderRadius:'8px',cursor:'pointer',color:'var(--red)',fontSize:'14px',flexShrink:0},onClick:()=>{
+                    setSettings(s=>({...s, deletedMuscles: s.deletedMuscles.filter(x=>x!==m)}));
+                  }},React.createElement(XIcon,{size:14}))
+                )
               )
             )
           )
         ),
+
         // admin panel
         ((adminTaps.logo && adminTaps.sync) || localStorage.getItem('override_uid')) && React.createElement('div',{className:'settings-card'},
           React.createElement('h3',null,'👑 Admin Panel'),
