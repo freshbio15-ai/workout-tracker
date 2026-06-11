@@ -253,8 +253,9 @@ body {
 .ex-name-input:focus{outline:none;border-color:var(--accent)}
 .ex-name-input.hint-name{animation:hintBreath 2.4s ease-in-out infinite}
 .set-input.hint-pulse{animation:hintPulse 0.9s ease-in-out infinite}
-@keyframes hintBreath{0%,100%{border-color:var(--border);box-shadow:none}50%{border-color:rgba(var(--accent-rgb),.45);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08)}}
-@keyframes hintPulse{0%,100%{border-color:var(--border);box-shadow:none}50%{border-color:rgba(var(--accent-rgb),.6);box-shadow:0 0 0 4px rgba(var(--accent-rgb),.12)}}
+@keyframes hintBreath{0%,100%{border-color:var(--border);box-shadow:none}50%{border-color:var(--accent3);box-shadow:0 0 0 3px var(--accent-glow2)}}
+@keyframes hintPulse{0%,100%{border-color:var(--border);box-shadow:none}50%{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-glow)}}
+
 
 .ex-remove-btn{width:30px;height:30px;border-radius:8px;background:rgba(239,68,68,.1);border:none;color:var(--red);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .ex-remove-btn:active{transform:scale(.88);background:rgba(239,68,68,.25)}
