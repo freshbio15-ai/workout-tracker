@@ -359,7 +359,7 @@ function App(){
     });
   }
   function rmSet(ei,si){setDraft(p=>({...p,exercises:p.exercises.map((e,i)=>i!==ei?e:{...e,sets:e.sets.filter((_,j)=>j!==si)})}))}
-  function addEx(){setDraft(p=>{const newEi=p.exercises.length;setHintSet({ei:newEi,si:0,field:'weight'});return {...p,exercises:[...p.exercises,mkEx()]}})}
+  function addEx(){setDraft(p=>({...p,exercises:[...p.exercises,mkEx()]}))}
   function rmEx(ei){setDraft(p=>({...p,exercises:p.exercises.filter((_,i)=>i!==ei)}))}
 
   function toggleBW(ei){
