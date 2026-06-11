@@ -248,9 +248,14 @@ body {
 /* ===== EXERCISE BLOCK ===== */
 .exercise-block{background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px}
 .ex-name-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.ex-name-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);padding:9px 12px;color:var(--text1);font-size:14px;font-weight:600;font-family:inherit;transition:border-color .2s}
+.ex-name-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);padding:9px 12px;color:var(--text1);font-size:14px;font-weight:600;font-family:inherit;transition:border-color .2s,box-shadow .2s}
 .ex-name-input::placeholder{color:var(--text3)}
 .ex-name-input:focus{outline:none;border-color:var(--accent)}
+.ex-name-input.hint-name{animation:hintBreath 2.4s ease-in-out infinite}
+.set-input.hint-pulse{animation:hintPulse 0.9s ease-in-out infinite}
+@keyframes hintBreath{0%,100%{border-color:var(--border);box-shadow:none}50%{border-color:rgba(var(--accent-rgb),.45);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.08)}}
+@keyframes hintPulse{0%,100%{border-color:var(--border);box-shadow:none}50%{border-color:rgba(var(--accent-rgb),.6);box-shadow:0 0 0 4px rgba(var(--accent-rgb),.12)}}
+
 .ex-remove-btn{width:30px;height:30px;border-radius:8px;background:rgba(239,68,68,.1);border:none;color:var(--red);font-size:16px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0}
 .ex-remove-btn:active{transform:scale(.88);background:rgba(239,68,68,.25)}
 
