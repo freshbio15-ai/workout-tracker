@@ -239,7 +239,7 @@ body {
 
 /* ===== EMOJI MUSCLE SELECTOR ===== */
 .emoji-muscle-row{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;justify-content:center}
-.emoji-muscle-btn{height:30px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;padding:0 14px;white-space:nowrap;letter-spacing:0.3px}
+.emoji-muscle-btn{height:34px;border-radius:10px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s;padding:0 16px;white-space:nowrap;letter-spacing:0.3px}
 .emoji-muscle-btn:active{transform:scale(.95)}
 .emoji-muscle-btn.active{background:linear-gradient(135deg,rgba(124,58,237,.2),var(--accent-glow2));border-color:var(--accent);color:#fff;box-shadow:0 0 12px rgba(var(--accent-rgb),.3)}
 .muscle-btn-icon{width:36px;height:36px;object-fit:cover;transform:scale(1.25); mix-blend-mode: screen;}
@@ -248,7 +248,7 @@ body {
 /* ===== EXERCISE BLOCK ===== */
 .exercise-block{background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px;margin-bottom:10px}
 .ex-name-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.ex-name-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);padding:9px 12px;color:var(--text1);font-size:14px;font-weight:600;font-family:inherit;transition:border-color .2s,box-shadow .2s}
+.ex-name-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);padding:11px 14px;color:var(--text1);font-size:16px;font-weight:600;font-family:inherit;transition:border-color .2s,box-shadow .2s}
 .ex-name-input::placeholder{color:var(--text3)}
 .ex-name-input:focus{outline:none;border-color:var(--accent)}
 .ex-name-input.hint-name{animation:hintBreath 2.4s ease-in-out infinite}
@@ -268,7 +268,7 @@ body {
 .set-row{display:grid;grid-template-columns:30px 1fr 16px 1fr 28px;gap:5px;margin-bottom:5px;align-items:center}
 .set-row.set-row-first{grid-template-columns:30px 1fr 16px 1fr 28px}
 .set-badge{width:26px;height:26px;border-radius:7px;background:var(--accent-glow2);color:var(--accent3);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center}
-.set-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);padding:7px 6px;color:var(--text1);font-size:13px;font-family:inherit;text-align:center;transition:border-color .2s}
+.set-input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);padding:9px 6px;color:var(--text1);font-size:15px;font-family:inherit;text-align:center;transition:border-color .2s}
 .set-input::placeholder{color:var(--text3)}
 .set-input:focus{outline:none;border-color:var(--accent2)}
 .set-input:disabled{opacity:.5}
