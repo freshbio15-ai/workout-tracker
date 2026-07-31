@@ -246,7 +246,7 @@ body {
 .inline-muscle-icon{width:24px;height:24px;object-fit:cover;border-radius:4px;overflow:hidden; mix-blend-mode: screen;}
 .mt-icon{width:40px;height:40px;object-fit:cover;transform:scale(1.25)}
 /* ===== EXERCISE BLOCK ===== */
-.exercise-block{background:var(--bg4);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;margin-bottom:12px}
+.exercise-block{background:var(--bg4);border-top:1px solid var(--border);border-bottom:1px solid var(--border);border-left:none;border-right:none;border-radius:0;padding:16px 20px;margin-bottom:10px;margin-left:-16px;margin-right:-16px}
 .ex-name-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 .ex-name-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-xs);padding:13px 14px;color:var(--text1);font-size:16px;font-weight:600;font-family:inherit;transition:border-color .2s,box-shadow .2s}
 .ex-name-input::placeholder{color:var(--text3)}
