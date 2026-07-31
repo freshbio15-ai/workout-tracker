@@ -48,6 +48,7 @@ const STORAGE = 'gymbook-data';
 const SETTINGS_KEY = 'gymbook-settings';
 const WEEKDAYS = ['Нд','Пн','Вт','Ср','Чт','Пт','Сб'];
 const MONTHS = ['Січень','Лютий','Березень','Квітень','Травень','Червень','Липень','Серпень','Вересень','Жовтень','Листопад','Грудень'];
+const ADMIN_UID = 'e2SaU3SRA6NncTAfO34Gv5y5M6q1';
 
 // ── Firebase init ────────────────────────────────────────────────────
 const firebaseConfig = {
@@ -95,19 +96,32 @@ async function saveToCloud(uid, data, settings) {
 }
 
 async function loadFromCloud(uid) {
+  let settings = null;
+  let data = {};
+
+  // Load user doc (settings) separately
   try {
-    const [userSnap, workoutsSnap] = await Promise.all([
-      db.collection('users').doc(uid).get(),
-      userDoc(uid, 'workouts').get()
-    ]);
-    const settings = userSnap.exists && userSnap.data().settings ? userSnap.data().settings : null;
-    const data = {};
-    workoutsSnap.forEach(doc => { data[doc.id] = doc.data(); });
-    return { data, settings };
+    const userSnap = await db.collection('users').doc(uid).get();
+    if (userSnap.exists && userSnap.data().settings) {
+      settings = userSnap.data().settings;
+    }
   } catch (e) {
-    console.error('Cloud load error:', e);
-    return null;
+    console.error('Cloud load settings error:', e);
   }
+
+  // Load workouts separately — may be blocked by rules for non-admin
+  try {
+    const workoutsSnap = await userDoc(uid, 'workouts').get();
+    workoutsSnap.forEach(doc => { data[doc.id] = doc.data(); });
+  } catch (e) {
+    console.error('Cloud load workouts error:', e);
+    // workouts blocked by rules — return null so caller knows
+    if (!settings) return null;
+    return { data: {}, settings, _workoutsBlocked: true };
+  }
+
+  if (!settings && Object.keys(data).length === 0) return null;
+  return { data, settings };
 }
 function toKey(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function todayKey(){return toKey(new Date())}
@@ -194,6 +208,7 @@ function App(){
   const [bwValue,setBwValue]=useState('');
   const [showBwPicker, setShowBwPicker] = useState(false);
   const [adminTaps, setAdminTaps] = useState({logo: false, sync: false});
+  const [adminUidInput, setAdminUidInput] = useState('');
   const [bwUnit, setBwUnit] = useState('кг');
   const [bwPickerYear, setBwPickerYear] = useState(new Date().getFullYear());
   const [weightPage, setWeightPage] = useState(0);
@@ -806,7 +821,14 @@ function App(){
       }),
       // edit button
       React.createElement('button',{className:'save-btn',style:{marginTop:'16px',background:'var(--bg4)',boxShadow:'none',border:'1px solid var(--border)'},onClick:()=>{
-        const[y,m]=k.split('-').map(Number);setCalDate(new Date(y,m-1,1));setSelected(k);setTab('calendar');setHistoryDetail(null);
+        const[y,m]=k.split('-').map(Number);
+        const workout = data[k];
+        setCalDate(new Date(y,m-1,1));
+        setSelected(k);
+        // Завжди встановлюємо draft напряму — useEffect не спрацює якщо selected вже був цим ключем
+        setDraft(workout ? JSON.parse(JSON.stringify(workout)) : mkDay());
+        setTab('calendar');
+        setHistoryDetail(null);
       }},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(EditIcon), 'Редагувати тренування')),
       React.createElement('button',{className:'del-day-btn',style:{marginTop:'12px'},onClick:()=>deleteDay(k)},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(TrashIcon), 'Видалити'))
     );
@@ -1183,20 +1205,21 @@ function App(){
         ),
 
         // admin panel
-        ((adminTaps.logo && adminTaps.sync) || localStorage.getItem('override_uid')) && React.createElement('div',{className:'settings-card'},
+        ((adminTaps.logo && adminTaps.sync) || localStorage.getItem('override_uid') || (uid || '').startsWith(ADMIN_UID.substring(0,8))) && React.createElement('div',{className:'settings-card'},
           React.createElement('h3',null,'👑 Admin Panel'),
+          React.createElement('p',{style:{fontSize:'12px',color:'var(--text3)',marginBottom:'12px'}},'Твій UID: ',React.createElement('span',{style:{fontFamily:'monospace',color:'var(--text2)',wordBreak:'break-all',userSelect:'all'}},uid||'—')),
           React.createElement('button',{className:'save-btn',onClick:async()=>{
             try {
               const snap = await db.collection('users').get();
               const accs = [];
-              snap.forEach(d => {
-                accs.push({ uid: d.id, ...d.data() });
-              });
+              snap.forEach(d => { accs.push({ uid: d.id, ...d.data() }); });
               setAdminAccounts(accs);
-              setShowAdminModal(true);
-            } catch(e) { alert('Помилка: ' + e.message); }
-          }},'Змінити акаунт'),
-          localStorage.getItem('override_uid') && React.createElement('button',{className:'del-day-btn',onClick:()=>{
+            } catch(e) {
+              setAdminAccounts([]);
+            }
+            setShowAdminModal(true);
+          }},'Всі акаунти'),
+          localStorage.getItem('override_uid') && React.createElement('button',{className:'del-day-btn',style:{marginTop:'10px'},onClick:()=>{
             localStorage.removeItem('override_uid');
             window.location.reload();
           }},'Повернутись у свій акаунт')
@@ -1207,43 +1230,144 @@ function App(){
 
   function renderAdminModal(){
     if(!showAdminModal) return null;
+
+    // Saved accounts from localStorage
+    let savedAccounts = [];
+    try { savedAccounts = JSON.parse(localStorage.getItem('admin_known_uids') || '[]'); } catch{}
+
+    async function switchToUid(targetUid) {
+      if(!targetUid || !targetUid.trim()) return;
+      targetUid = targetUid.trim();
+      if(targetUid === uid && !localStorage.getItem('override_uid')) { flash('Це вже твій акаунт'); return; }
+      setCloudStatus('connecting');
+
+      // Очищаємо дані ДО завантаження — щоб не лишались старі
+      setData({});
+      setSelected(todayKey());
+      setDraft(null);
+      persist(STORAGE, {});
+
+      const cloud = await loadFromCloud(targetUid);
+      if(cloud) {
+        localStorage.setItem('override_uid', targetUid);
+        setUid(targetUid);
+        setData(cloud.data || {});
+        if(cloud.settings) {
+          setSettings(cloud.settings);
+          persist(SETTINGS_KEY, cloud.settings);
+        }
+        persist(STORAGE, cloud.data || {});
+        const existing = JSON.parse(localStorage.getItem('admin_known_uids') || '[]');
+        if(!existing.includes(targetUid)) {
+          localStorage.setItem('admin_known_uids', JSON.stringify([targetUid, ...existing].slice(0,10)));
+        }
+        setAdminUidInput('');
+        setShowAdminModal(false);
+        setCloudStatus('synced');
+        if(cloud._workoutsBlocked) {
+          flash('⚠️ Тренування заблоковані rules — оновіть Firestore Rules');
+        } else {
+          const name = cloud.settings?.userName || targetUid.substring(0,8) + '…';
+          flash('👤 ' + name + ' — ' + Object.keys(cloud.data || {}).length + ' тренувань');
+        }
+      } else {
+        // Повертаємось на свій акаунт якщо не знайдено
+        const myCloud = await loadFromCloud(ADMIN_UID);
+        if(myCloud){ setData(myCloud.data||{}); if(myCloud.settings)setSettings(myCloud.settings); persist(STORAGE,myCloud.data||{}); }
+        localStorage.removeItem('override_uid');
+        setUid(ADMIN_UID);
+        setCloudStatus('synced');
+        flash('Акаунт не знайдено');
+      }
+    }
+
     return React.createElement('div', {className:'cc-overlay', onClick:()=>setShowAdminModal(false)},
-      React.createElement('div', {className:'cc-modal', onClick:e=>e.stopPropagation(), style:{maxHeight:'80vh',overflow:'auto'}},
-        React.createElement('div', {className:'cc-header'},
-          React.createElement('div', {className:'cc-title'}, 'Вибір акаунту'),
+      React.createElement('div', {className:'cc-modal', onClick:e=>e.stopPropagation(), style:{maxHeight:'85vh',overflow:'auto',padding:'24px'}},
+        React.createElement('div', {className:'cc-header', style:{marginBottom:'20px'}},
+          React.createElement('div', {className:'cc-title'}, '👑 Всі акаунти'),
           React.createElement('button', {className:'cc-btn', onClick:()=>setShowAdminModal(false)}, React.createElement(XIcon))
         ),
-        adminAccounts.map(acc => React.createElement('div', {
-          key: acc.uid,
-          style: {padding:'12px', borderBottom:'1px solid var(--border)', cursor:'pointer', background: uid === acc.uid ? 'var(--bg3)' : 'transparent', borderRadius:'8px'},
-          onClick: async () => {
-            localStorage.setItem('override_uid', acc.uid);
-            setUid(acc.uid);
-            const cloud = await loadFromCloud(acc.uid);
-            if(cloud) {
-              setData(cloud.data);
-              setSettings(cloud.settings);
-              persist('gymbook-data', cloud.data);
-              persist('gymbook-settings', cloud.settings);
-            } else {
-              setData({});
-              setSettings({});
-            }
-            setShowAdminModal(false);
-            flash('Акаунт змінено');
-          }
-        }, 
-          React.createElement('div', {style:{fontWeight:'bold', fontSize:'14px', marginBottom:'4px', wordBreak:'break-all'}}, 
-            ((acc.userAgent||'Unknown Device').split('(')[1]?.split(')')[0] || (acc.userAgent||'Unknown Device').substring(0,25)),
-            ' | ',
-            React.createElement('span', {style:{color:'var(--green2)'}}, acc.settings?.userName || '-')
-          ),
-          React.createElement('div', {style:{fontSize:'12px', color:'var(--text3)'}}, 
-            'ID: ', acc.uid,
-            React.createElement('br'),
-            'Оновлено: ', acc.updatedAt?.toDate ? acc.updatedAt.toDate().toLocaleString() : '—'
-          )
-        ))
+
+        // Current UID display
+        React.createElement('div', {style:{background:'var(--bg3)',borderRadius:'12px',padding:'10px 14px',marginBottom:'16px',border:'1px solid var(--border)'}},
+          React.createElement('div', {style:{fontSize:'11px',color:'var(--text3)',marginBottom:'2px',textTransform:'uppercase',letterSpacing:'0.05em'}},'Поточний UID'),
+          React.createElement('div', {style:{fontSize:'11px',fontFamily:'monospace',color:'var(--green2)',wordBreak:'break-all',userSelect:'all'}}, uid || '—')
+        ),
+
+        // Accounts list from Firebase
+        adminAccounts.length > 0
+          ? React.createElement(React.Fragment, null,
+              React.createElement('div', {style:{fontSize:'12px',color:'var(--text3)',marginBottom:'10px'}}, adminAccounts.length + ' акаунтів знайдено'),
+              adminAccounts.map((acc, i) => React.createElement('div', {
+                key: acc.uid,
+                onClick: ()=>switchToUid(acc.uid),
+                style:{
+                  padding:'12px 14px', marginBottom:'8px', cursor:'pointer',
+                  background: acc.uid===uid ? 'rgba(124,58,237,0.12)' : 'var(--bg3)',
+                  border:'1px solid '+(acc.uid===uid?'var(--accent-dark)':'var(--border)'),
+                  borderRadius:'12px'
+                }
+              },
+                React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'4px'}},
+                  React.createElement('div', {style:{fontSize:'14px',fontWeight:'700',color: acc.uid===uid?'var(--accent2)':'var(--text1)'}},
+                    acc.uid===uid && React.createElement('span',{style:{color:'var(--green2)',marginRight:'6px'}},'● '),
+                    acc.settings?.userName || '—'
+                  ),
+                  React.createElement('div', {style:{fontSize:'11px',color:'var(--text3)'}},
+                    acc.updatedAt?.toDate ? acc.updatedAt.toDate().toLocaleDateString('uk-UA') : '—'
+                  )
+                ),
+                React.createElement('div', {style:{fontSize:'10px',fontFamily:'monospace',color:'var(--text3)',wordBreak:'break-all'}}, acc.uid)
+              ))
+            )
+          : React.createElement(React.Fragment, null,
+              // Manual UID input fallback
+              React.createElement('div', {style:{fontSize:'13px',color:'var(--text2)',marginBottom:'8px',fontWeight:'600'}},'Або введи UID вручну:'),
+              React.createElement('div', {style:{display:'flex',gap:'8px',marginBottom:'16px'}},
+                React.createElement('input', {
+                  type:'text', placeholder:'Вставте UID сюди…',
+                  value: adminUidInput,
+                  onChange: e=>setAdminUidInput(e.target.value),
+                  onKeyDown: e=>{ if(e.key==='Enter') switchToUid(adminUidInput); },
+                  style:{
+                    flex:1, background:'var(--bg3)', border:'1px solid var(--border2)',
+                    borderRadius:'10px', padding:'10px 14px', color:'var(--text1)',
+                    fontSize:'13px', fontFamily:'monospace', outline:'none'
+                  }
+                }),
+                React.createElement('button', {
+                  onClick:()=>switchToUid(adminUidInput),
+                  style:{
+                    background:'var(--accent-dark)',color:'#fff',border:'none',
+                    borderRadius:'10px',padding:'10px 16px',fontWeight:'700',
+                    fontSize:'13px',cursor:'pointer',whiteSpace:'nowrap'
+                  }
+                }, 'Перейти')
+              ),
+              savedAccounts.length > 0 && React.createElement(React.Fragment, null,
+                React.createElement('div', {style:{fontSize:'13px',color:'var(--text2)',marginBottom:'8px',fontWeight:'600'}},'Збережені:'),
+                savedAccounts.map((savedUid, i) => React.createElement('div', {
+                  key: i,
+                  onClick: ()=>switchToUid(savedUid),
+                  style:{
+                    display:'flex',alignItems:'center',justifyContent:'space-between',
+                    padding:'10px 14px',marginBottom:'6px',
+                    background: savedUid===uid?'rgba(124,58,237,0.12)':'var(--bg3)',
+                    border:'1px solid '+(savedUid===uid?'var(--accent-dark)':'var(--border)'),
+                    borderRadius:'10px',cursor:'pointer'
+                  }
+                },
+                  React.createElement('div', {style:{fontSize:'12px',fontFamily:'monospace',color:'var(--text2)',wordBreak:'break-all',flex:1}},
+                    savedUid===uid && React.createElement('span',{style:{color:'var(--green2)',marginRight:'6px'}},'● '),
+                    savedUid
+                  ),
+                  React.createElement('button', {
+                    onClick:(e)=>{ e.stopPropagation(); const next=savedAccounts.filter(x=>x!==savedUid); localStorage.setItem('admin_known_uids',JSON.stringify(next)); flash('Видалено'); setShowAdminModal(false); setTimeout(()=>setShowAdminModal(true),50); },
+                    style:{background:'none',border:'none',color:'var(--text3)',cursor:'pointer',padding:'4px',flexShrink:0}
+                  }, React.createElement(XIcon, {size:14}))
+                ))
+              )
+            )
       )
     );
   }
