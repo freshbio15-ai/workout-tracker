@@ -160,6 +160,27 @@ const mkSet=()=>({reps:'',weight:'',bw:false});
 const mkEx=()=>({name:'',muscle:'',sets:[mkSet()]});
 const mkDay=()=>({muscle:'',exercises:[mkEx()]});
 
+// Захист від побитих даних з Firestore
+function sanitizeDraft(w) {
+  if(!w || typeof w !== 'object') return mkDay();
+  const exercises = Array.isArray(w.exercises) && w.exercises.length > 0
+    ? w.exercises.map(ex => ({
+        name:   typeof ex.name   === 'string' ? ex.name   : '',
+        muscle: typeof ex.muscle === 'string' ? ex.muscle : '',
+        sets: Array.isArray(ex.sets) && ex.sets.length > 0
+          ? ex.sets.map(s => ({
+              reps:   s.reps   !== undefined ? s.reps   : '',
+              weight: s.weight !== undefined ? s.weight : '',
+              bw:     !!s.bw,
+              prevReps:   s.prevReps   || '',
+              prevWeight: s.prevWeight || '',
+            }))
+          : [mkSet()]
+      }))
+    : [mkEx()];
+  return { muscle: w.muscle || '', exercises };
+}
+
 function buildGrid(y,m){const f=new Date(y,m,1);const dow=f.getDay();const days=new Date(y,m+1,0).getDate();const c=[];for(let i=0;i<dow;i++)c.push(null);for(let d=1;d<=days;d++)c.push(d);return c}
 
 function calcTonnage(workout){
@@ -327,7 +348,7 @@ function App(){
   useEffect(()=>{
     if(!selected){setDraft(null);return}
     const ex=data[selected];
-    if(ex) setDraft(JSON.parse(JSON.stringify(ex)));
+    if(ex) setDraft(sanitizeDraft(ex));
     else setDraft(mkDay());
   },[selected]);
 
@@ -826,7 +847,7 @@ function App(){
         setCalDate(new Date(y,m-1,1));
         setSelected(k);
         // Завжди встановлюємо draft напряму — useEffect не спрацює якщо selected вже був цим ключем
-        setDraft(workout ? JSON.parse(JSON.stringify(workout)) : mkDay());
+        setDraft(sanitizeDraft(workout));
         setTab('calendar');
         setHistoryDetail(null);
       }},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(EditIcon), 'Редагувати тренування')),
