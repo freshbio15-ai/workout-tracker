@@ -41,7 +41,6 @@ const MUSCLES = [
   {id:'biceps',    icon:'biceps',    label:'Біцепс'},
   {id:'calves',    icon:'calves',    label:'Ікри'},
   {id:'traps',     icon:'traps',     label:'Трапеція'},
-  {id:'forearms',  icon:'forearms',  label:'Передпліччя'},
 ];
 
 const STORAGE = 'gymbook-data';
@@ -258,7 +257,6 @@ function App(){
     {label:'Біц лівий',      icon:'biceps'},
     {label:'Ікри лівий',     icon:'calves'},
     {label:'Ікри правий',    icon:'calves'},
-    {label:'Передпліччя',    icon:'forearms'},
   ];
 
   const [confirmAction, setConfirmAction] = useState(null); // {title, onConfirm}
