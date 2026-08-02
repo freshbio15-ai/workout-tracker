@@ -897,109 +897,220 @@ function App(){
   function renderCompareModal(){
     if(!compareModal) return null;
     const { keyA, keyB } = compareModal;
-    const wA = data[keyA]; // older
-    const wB = data[keyB]; // newer (current)
+    const wA = data[keyA];
+    const wB = data[keyB];
     if(!wA || !wB) return null;
 
     const tonA = calcTonnage(wA);
     const tonB = calcTonnage(wB);
     const tonDiff = tonB - tonA;
     const tonPct = tonA > 0 ? Math.round((tonDiff/tonA)*100) : 0;
-
     const setsA = wA.exercises.reduce((a,e)=>a+e.sets.length,0);
     const setsB = wB.exercises.reduce((a,e)=>a+e.sets.length,0);
     const repsA = wA.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0),0),0);
     const repsB = wB.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0),0),0);
 
-    // Match exercises by name
-    const exComparisons = [];
+    const exComps = [];
     wB.exercises.forEach(exB => {
       if(!exB.name) return;
       const exA = wA.exercises.find(e => e.name && e.name.toLowerCase().trim() === exB.name.toLowerCase().trim());
       const maxWB = Math.max(...exB.sets.map(s=>Number(s.weight)||0));
-      const maxRA = exA ? Math.max(...exA.sets.map(s=>Number(s.reps)||0)) : null;
       const maxRB = Math.max(...exB.sets.map(s=>Number(s.reps)||0));
       const maxWA = exA ? Math.max(...exA.sets.map(s=>Number(s.weight)||0)) : null;
+      const maxRA = exA ? Math.max(...exA.sets.map(s=>Number(s.reps)||0)) : null;
       const tonExA = exA ? calcExTonnage(exA) : null;
       const tonExB = calcExTonnage(exB);
-      exComparisons.push({ name: exB.name, maxWA, maxWB, maxRA, maxRB, tonExA, tonExB, found: !!exA });
+      const wDiff = maxWA !== null ? maxWB - maxWA : null;
+      const rDiff = maxRA !== null ? maxRB - maxRA : null;
+      const vDiff = tonExA !== null ? tonExB - tonExA : null;
+      const score = (wDiff > 0 ? wDiff * 3 : 0) + (rDiff > 0 ? rDiff * 2 : 0) + (vDiff > 0 ? vDiff / 50 : 0);
+      let tag = 'stable';
+      if(maxWA === null) tag = 'new';
+      else if(wDiff > 0) tag = 'pr';
+      else if(wDiff === 0 && rDiff > 0) tag = 'more_reps';
+      else if(vDiff > 0) tag = 'volume';
+      exComps.push({ name: exB.name, maxWA, maxWB, maxRA, maxRB, tonExA, tonExB, wDiff, rDiff, vDiff, score, tag });
     });
 
-    const arrow = (a, b, unit='') => {
-      if(a === null || a === undefined) return React.createElement('span',{style:{color:'var(--text3)',fontSize:'12px'}},'нова');
-      const diff = b - a;
-      if(diff === 0) return React.createElement('span',{style:{color:'var(--text3)',fontWeight:700}},'=');
-      const color = diff > 0 ? 'var(--green2)' : 'var(--red)';
-      const sign = diff > 0 ? '▲' : '▼';
-      return React.createElement('span',{style:{color,fontWeight:700,fontSize:'13px'}}, sign+' '+(diff>0?'+':'')+diff+(unit?' '+unit:''));
+    const prEx = exComps.filter(e=>e.wDiff > 0).sort((a,b)=>b.wDiff-a.wDiff);
+    const repGains = exComps.filter(e=>e.rDiff > 0 && e.wDiff === 0).sort((a,b)=>b.rDiff-a.rDiff);
+    const newEx = exComps.filter(e=>e.tag==='new');
+    const achievements = [];
+    prEx.forEach(e => achievements.push({ icon: '\ud83c\udfc6', text: 'New PR: ' + e.name + ' \u2014 ' + e.maxWB + ' \u043a\u0433', color: '#f59e0b' }));
+    repGains.forEach(e => achievements.push({ icon: '\ud83d\udcc8', text: '+' + e.rDiff + ' \u043f\u043e\u0432\u0442. \u2014 ' + e.name, color: 'var(--green2)' }));
+    newEx.forEach(e => achievements.push({ icon: '\u2728', text: '\u041d\u043e\u0432\u0430 \u0432\u043f\u0440\u0430\u0432\u0430: ' + e.name, color: 'var(--accent2)' }));
+    const topAchievements = achievements.slice(0, 3);
+
+    const keyEx = exComps.filter(e=>e.score > 0).sort((a,b)=>b.score-a.score)[0] || null;
+    const anyStrengthUp = prEx.length > 0 || repGains.length > 0;
+    const volChange = Math.abs(tonPct) < 2 ? 'stable' : tonPct > 0 ? 'up' : 'down';
+    let conclusion = '';
+    if(anyStrengthUp && volChange === 'stable') conclusion = '\u0421\u0438\u043b\u0430 \u0437\u0440\u043e\u0441\u043b\u0430, \u043e\u0431\u0454\u043c \u0441\u0442\u0430\u0431\u0456\u043b\u044c\u043d\u0438\u0439.';
+    else if(anyStrengthUp && volChange === 'up') conclusion = '\u041f\u0440\u043e\u0433\u0440\u0435\u0441 \u043f\u043e \u0432\u0441\u0456\u0445 \u043f\u043e\u043a\u0430\u0437\u043d\u0438\u043a\u0430\u0445!';
+    else if(anyStrengthUp && volChange === 'down') conclusion = '\u0421\u0438\u043b\u0430 \u0437\u0440\u043e\u0441\u043b\u0430, \u0456\u043d\u0442\u0435\u043d\u0441\u0438\u0432\u043d\u0456\u0448\u0435 \u0442\u0440\u0435\u043d\u0443\u0432\u0430\u043d\u043d\u044f.';
+    else if(volChange === 'up') conclusion = '\u0411\u0456\u043b\u044c\u0448\u0435 \u043e\u0431\u0454\u043c\u0443, \u0440\u043e\u0431\u043e\u0442\u0430 \u0437\u0440\u043e\u0431\u043b\u0435\u043d\u0430.';
+    else if(exComps.some(e=>e.wDiff < 0 && e.rDiff < 0)) conclusion = '\u0412\u0430\u0440\u0442\u043e \u0434\u0430\u0442\u0438 \u0431\u0456\u043b\u044c\u0448\u0435 \u0447\u0430\u0441\u0443 \u043d\u0430 \u0432\u0456\u0434\u043f\u043e\u0447\u0438\u043d\u043e\u043a.';
+    else conclusion = '\u0421\u0442\u0430\u0431\u0456\u043b\u044c\u043d\u0435 \u0442\u0440\u0435\u043d\u0443\u0432\u0430\u043d\u043d\u044f, \u0442\u0440\u0438\u043c\u0430\u0439 \u0440\u0438\u0442\u043c.';
+    if(keyEx){
+      if(keyEx.rDiff > 0) conclusion += ' \u041d\u0430\u0439\u0431\u0456\u043b\u044c\u0448\u0435 \u0437\u0440\u043e\u0441\u043b\u0430: ' + keyEx.name + ' (+' + keyEx.rDiff + ' \u043f\u043e\u0432\u0442).';
+      else if(keyEx.wDiff > 0) conclusion += ' \u0420\u0435\u043a\u043e\u0440\u0434 \u0432\u0430\u0433\u0438: ' + keyEx.name + ' (' + keyEx.maxWB + '\u043a\u0433).';
+    }
+
+    const allSortedKeys = Object.keys(data).sort();
+    function getCycleHistory(exName){
+      const hist = [];
+      allSortedKeys.forEach(k => {
+        const w = data[k]; if(!w||!w.exercises) return;
+        const ex = w.exercises.find(e => e.name && e.name.toLowerCase().trim() === exName.toLowerCase().trim());
+        if(!ex||!ex.sets.length) return;
+        hist.push({ key: k, maxW: Math.max(...ex.sets.map(s=>Number(s.weight)||0)), maxR: Math.max(...ex.sets.map(s=>Number(s.reps)||0)) });
+      });
+      return hist.slice(-5);
+    }
+
+    const TAG_CONFIG = {
+      pr:        { label: 'New PR',           bg: 'rgba(245,158,11,.15)',  color: '#f59e0b',        border: 'rgba(245,158,11,.3)' },
+      more_reps: { label: '+Rep PR',          bg: 'rgba(16,185,129,.12)',  color: 'var(--green2)',  border: 'rgba(16,185,129,.25)' },
+      volume:    { label: 'More volume',      bg: 'rgba(16,185,129,.08)',  color: 'var(--green2)',  border: 'rgba(16,185,129,.15)' },
+      stable:    { label: 'Stable',           bg: 'rgba(255,255,255,.05)', color: 'var(--text3)',   border: 'var(--border)' },
+      new:       { label: 'New',              bg: 'rgba(124,58,237,.12)',  color: 'var(--accent2)', border: 'rgba(124,58,237,.25)' },
     };
 
-    const summaryItems = [];
-    if(tonDiff > 0) summaryItems.push('📈 Обєм +' + (tonDiff > 1000 ? (tonDiff/1000).toFixed(1)+'т' : tonDiff+'кг'));
-    else if(tonDiff < 0) summaryItems.push('📉 Обєм ' + (tonDiff < -1000 ? (tonDiff/1000).toFixed(1)+'т' : tonDiff+'кг'));
-    else summaryItems.push('➡️ Обєм однаковий');
-    const prItems = exComparisons.filter(e=>e.maxWA!==null && e.maxWB > e.maxWA);
-    if(prItems.length > 0) summaryItems.push('🏆 Новий рекорд ваги: ' + prItems.map(e=>e.name+' ('+e.maxWB+'кг)').join(', '));
-    const dropItems = exComparisons.filter(e=>e.maxWA!==null && e.maxWB < e.maxWA);
-    if(dropItems.length > 0) summaryItems.push('⚠️ Менша вага: ' + dropItems.map(e=>e.name).join(', '));
-
     return React.createElement('div',{className:'cc-overlay',onClick:()=>setCompareModal(null)},
-      React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),style:{maxHeight:'90vh',overflow:'auto',padding:'20px'}},
-        React.createElement('div',{className:'cc-header',style:{marginBottom:'16px'}},
-          React.createElement('div',{className:'cc-title'},'⚡ Порівняння'),
+      React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),
+        style:{maxHeight:'92vh',overflow:'auto',padding:'0',borderRadius:'24px',display:'flex',flexDirection:'column'}},
+
+        React.createElement('div',{style:{
+          position:'sticky',top:0,zIndex:10,background:'var(--bg2)',
+          borderBottom:'1px solid var(--border)',padding:'16px 20px 12px',
+          display:'flex',alignItems:'center',justifyContent:'space-between',borderRadius:'24px 24px 0 0'
+        }},
+          React.createElement('div',null,
+            React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',marginBottom:'2px'}},'\u041f\u043e\u0440\u0456\u0432\u043d\u044f\u043d\u043d\u044f'),
+            React.createElement('div',{style:{fontSize:'16px',fontWeight:800}},
+              fmtShort(keyA),
+              React.createElement('span',{style:{color:'var(--text3)',margin:'0 8px'}},'\u2192'),
+              fmtShort(keyB)
+            )
+          ),
           React.createElement('button',{className:'cc-btn',onClick:()=>setCompareModal(null)},React.createElement(XIcon))
         ),
 
-        // Date labels
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'16px'}},
-          React.createElement('div',{style:{background:'var(--bg3)',borderRadius:'12px',padding:'10px 12px',border:'1px solid var(--border)',textAlign:'center'}},
-            React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'4px'}},'Попереднє'),
-            React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:'var(--text1)'}},fmtShort(keyA))
+        React.createElement('div',{style:{padding:'20px',display:'flex',flexDirection:'column',gap:'16px'}},
+
+          topAchievements.length > 0 && React.createElement('div',{style:{
+            background:'linear-gradient(135deg,rgba(124,58,237,.12),rgba(16,185,129,.06))',
+            border:'1px solid rgba(124,58,237,.2)',borderRadius:'18px',padding:'16px'
+          }},
+            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--accent2)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'12px'}},'\u041f\u0440\u043e\u0433\u0440\u0435\u0441'),
+            topAchievements.map((a,i)=>React.createElement('div',{key:i,style:{
+              display:'flex',alignItems:'center',gap:'10px',marginBottom:i<topAchievements.length-1?'10px':0
+            }},
+              React.createElement('span',{style:{fontSize:'20px',lineHeight:1}},a.icon),
+              React.createElement('span',{style:{fontSize:'14px',fontWeight:700,color:a.color}},a.text)
+            ))
           ),
-          React.createElement('div',{style:{background:'rgba(124,58,237,.1)',borderRadius:'12px',padding:'10px 12px',border:'1px solid var(--accent-dark)',textAlign:'center'}},
-            React.createElement('div',{style:{fontSize:'10px',color:'var(--accent2)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'4px'}},'Поточне'),
-            React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:'var(--text1)'}},fmtShort(keyB))
-          )
-        ),
 
-        // Summary
-        React.createElement('div',{style:{background:'var(--bg3)',borderRadius:'14px',padding:'14px',marginBottom:'16px',border:'1px solid var(--border)'}},
-          React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'10px',fontWeight:700}},'Підсумок'),
-          summaryItems.map((s,i)=>React.createElement('div',{key:i,style:{fontSize:'14px',marginBottom:'6px',fontWeight:600,color:'var(--text1)'}},s))
-        ),
+          React.createElement('div',{style:{
+            background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',
+            padding:'14px 16px',fontSize:'14px',fontWeight:600,color:'var(--text1)',lineHeight:1.55
+          }},conclusion),
 
-        // Key stats comparison
-        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'6px',marginBottom:'16px'}},
-          [['Об\'єм', tonA>1000?(tonA/1000).toFixed(1)+'т':tonA+'кг', tonB>1000?(tonB/1000).toFixed(1)+'т':tonB+'кг', tonDiff, ''],
-           ['Підходи', setsA, setsB, setsB-setsA, ''],
-           ['Повтори', repsA, repsB, repsB-repsA, '']].map(([lbl,vA,vB,diff,unit],i)=>
-            React.createElement('div',{key:i,style:{background:'var(--bg3)',borderRadius:'12px',padding:'10px 8px',border:'1px solid var(--border)',textAlign:'center'}},
-              React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'6px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em'}},lbl),
-              React.createElement('div',{style:{fontSize:'13px',color:'var(--text2)',marginBottom:'2px'}},String(vA)),
-              React.createElement('div',{style:{fontSize:'15px',fontWeight:800,color:'var(--text1)',marginBottom:'4px'}},String(vB)),
-              arrow(Number(String(vA).replace(/[^\d.-]/g,'')), Number(String(vB).replace(/[^\d.-]/g,'')), unit)
+          keyEx && React.createElement('div',{style:{
+            background:'rgba(245,158,11,.07)',border:'1px solid rgba(245,158,11,.2)',borderRadius:'16px',padding:'14px 16px'
+          }},
+            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'#f59e0b',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:'8px'}},'\u041a\u043b\u044e\u0447\u043e\u0432\u0430 \u0432\u043f\u0440\u0430\u0432\u0430'),
+            React.createElement('div',{style:{fontSize:'16px',fontWeight:800,color:'var(--text1)',marginBottom:'8px'}},'\ud83c\udfc6 '+keyEx.name),
+            React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'4px'}},
+              keyEx.wDiff > 0 && React.createElement('div',{style:{fontSize:'13px',color:'#f59e0b',fontWeight:600}},'\u2191 \u0412\u0430\u0433\u0430 '+keyEx.maxWA+' \u2192 '+keyEx.maxWB+' \u043a\u0433'),
+              keyEx.rDiff > 0 && React.createElement('div',{style:{fontSize:'13px',color:'var(--green2)',fontWeight:600}},'\u2191 \u041f\u043e\u0432\u0442\u043e\u0440\u0438 +'+keyEx.rDiff),
+              keyEx.vDiff > 0 && React.createElement('div',{style:{fontSize:'12px',color:'var(--text2)'}},'\u2191 \u041e\u0431\u0454\u043c +'+keyEx.vDiff+'\u043a\u0433')
             )
-          )
-        ),
+          ),
 
-        // Per-exercise comparison
-        exComparisons.length > 0 && React.createElement(React.Fragment, null,
-          React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'10px',fontWeight:700}},'По вправах'),
-          exComparisons.map((ex,i)=>React.createElement('div',{key:i,style:{background:'var(--bg3)',borderRadius:'14px',padding:'14px',marginBottom:'8px',border:'1px solid var(--border)'}},
-            React.createElement('div',{style:{fontWeight:700,fontSize:'14px',color:'var(--text1)',marginBottom:'10px'}},(ex.found ? '' : '🆕 ') + ex.name),
-            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'6px'}},
-              [['Max вага', ex.maxWA, ex.maxWB, 'кг'],
-               ['Max повт.', ex.maxRA, ex.maxRB, ''],
-               ['Об\'єм', ex.tonExA, ex.tonExB, 'кг']].map(([lbl,vA,vB,unit],j)=>
-                React.createElement('div',{key:j,style:{background:'var(--bg4)',borderRadius:'10px',padding:'8px',textAlign:'center'}},
-                  React.createElement('div',{style:{fontSize:'9px',color:'var(--text3)',marginBottom:'4px',fontWeight:700,textTransform:'uppercase'}},lbl),
-                  vA !== null ? React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',marginBottom:'2px'}},String(vA)+(unit?' '+unit:'')) : React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'2px'}},'—'),
-                  React.createElement('div',{style:{fontSize:'14px',fontWeight:800,color:'var(--text1)',marginBottom:'3px'}},String(vB)+(unit?' '+unit:'')),
-                  arrow(vA, vB)
+          exComps.length > 0 && React.createElement('div',null,
+            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'10px'}},'\u0412\u043f\u0440\u0430\u0432\u0438'),
+            exComps.map((ex,i) => {
+              const tag = TAG_CONFIG[ex.tag] || TAG_CONFIG.stable;
+              const cycleHist = getCycleHistory(ex.name);
+              return React.createElement('div',{key:i,style:{
+                background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'16px',padding:'14px',marginBottom:'10px'
+              }},
+                React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'10px'}},
+                  React.createElement('div',{style:{fontWeight:700,fontSize:'14px',color:'var(--text1)',flex:1,marginRight:'8px'}},ex.name),
+                  React.createElement('div',{style:{
+                    fontSize:'10px',fontWeight:700,padding:'3px 8px',borderRadius:'20px',
+                    background:tag.bg,color:tag.color,border:'1px solid '+tag.border,whiteSpace:'nowrap'
+                  }},tag.label)
+                ),
+                React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'5px'}},
+                  ex.maxWA !== null
+                    ? ex.wDiff !== 0 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                        React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Max \u0432\u0430\u0433\u0430'),
+                        React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:ex.wDiff>0?'#f59e0b':'var(--text2)'}},
+                          ex.maxWA+' \u2192 '+ex.maxWB+' \u043a\u0433'+(ex.wDiff>0?' \ud83c\udfc6':''))
+                      )
+                    : React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                        React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Max \u0432\u0430\u0433\u0430'),
+                        React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:'var(--accent2)'}},ex.maxWB+' \u043a\u0433')
+                      ),
+                  ex.maxRA !== null && ex.rDiff !== 0 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                    React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Max \u043f\u043e\u0432\u0442.'),
+                    React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:ex.rDiff>0?'var(--green2)':'var(--red)'}},
+                      ex.maxRA+' \u2192 '+ex.maxRB+(ex.rDiff>0?' (+'+ex.rDiff+')':' ('+ex.rDiff+')'))
+                  ),
+                  ex.vDiff !== null && Math.abs(ex.vDiff/(ex.tonExA||1)) >= 0.02 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                    React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Obem'),
+                    React.createElement('span',{style:{fontSize:'13px',fontWeight:600,color:ex.vDiff>0?'var(--green2)':'var(--text3)'}},
+                      (ex.tonExA>1000?(ex.tonExA/1000).toFixed(1)+'\u0442':ex.tonExA+'\u043a\u0433')+
+                      ' \u2192 '+(ex.tonExB>1000?(ex.tonExB/1000).toFixed(1)+'\u0442':ex.tonExB+'\u043a\u0433')+
+                      (ex.vDiff>0?' (+'+ex.vDiff+')':' ('+ex.vDiff+')')
+                    )
+                  ),
+                  ex.tag === 'stable' && ex.maxWA !== null && React.createElement('div',{style:{fontSize:'12px',color:'var(--text3)'}},'\u2248 \u0411\u0435\u0437 \u0437\u043c\u0456\u043d')
+                ),
+                cycleHist.length >= 2 && React.createElement('div',{style:{marginTop:'10px',paddingTop:'10px',borderTop:'1px solid var(--border)'}},
+                  React.createElement('div',{style:{fontSize:'9px',color:'var(--text3)',marginBottom:'6px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}},'\u0422\u0440\u0435\u043d\u0434 \u043f\u043e \u0446\u0438\u043a\u043b\u0443'),
+                  React.createElement('div',{style:{display:'flex',gap:'6px',overflowX:'auto'}},
+                    cycleHist.map((h,j)=>{
+                      const isCur = h.key===keyB;
+                      return React.createElement('div',{key:j,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',flexShrink:0}},
+                        React.createElement('div',{style:{
+                          fontSize:'10px',fontWeight:700,
+                          color:isCur?'var(--accent2)':'var(--text2)',
+                          background:isCur?'rgba(124,58,237,.15)':'var(--bg4)',
+                          padding:'4px 7px',borderRadius:'8px',
+                          border:isCur?'1px solid var(--accent-dark)':'1px solid var(--border)',
+                          whiteSpace:'nowrap'
+                        }},h.maxW+'\xd7'+h.maxR),
+                        React.createElement('div',{style:{fontSize:'8px',color:'var(--text3)'}},fmtShort(h.key))
+                      );
+                    })
+                  )
                 )
-              )
+              );
+            })
+          ),
+
+          React.createElement('div',{style:{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',padding:'12px 16px'}},
+            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'10px'}},'\u0417\u0430\u0433\u0430\u043b\u044c\u043d\u0430 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430'),
+            React.createElement('div',{style:{display:'flex',justifyContent:'space-between'}},
+              [['\u041e\u0431\u0454\u043c', tonA>1000?(tonA/1000).toFixed(1)+'\u0442':tonA+'\u043a\u0433', tonB>1000?(tonB/1000).toFixed(1)+'\u0442':tonB+'\u043a\u0433', tonPct],
+               ['\u041f\u0456\u0434\u0445\u043e\u0434\u0438', setsA, setsB, setsA>0?Math.round((setsB-setsA)/setsA*100):0],
+               ['\u041f\u043e\u0432\u0442\u043e\u0440\u0438', repsA, repsB, repsA>0?Math.round((repsB-repsA)/repsA*100):0]].map(([lbl,vA,vB,pct],i)=>{
+                const isStable = Math.abs(pct) < 2;
+                return React.createElement('div',{key:i,style:{textAlign:'center',flex:1}},
+                  React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'4px',fontWeight:600}},lbl),
+                  isStable
+                    ? React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:'var(--text2)'}},String(vB))
+                    : React.createElement('div',null,
+                        React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)'}},String(vA)),
+                        React.createElement('div',{style:{fontSize:'13px',fontWeight:800,color:pct>0?'var(--green2)':pct<-2?'var(--red)':'var(--text1)'}},String(vB))
+                      )
+                );
+              })
             )
-          ))
+          )
         )
       )
     );
