@@ -935,9 +935,9 @@ function App(){
     };
 
     const summaryItems = [];
-    if(tonDiff > 0) summaryItems.push('📈 Об'єм +' + (tonDiff > 1000 ? (tonDiff/1000).toFixed(1)+'т' : tonDiff+'кг'));
-    else if(tonDiff < 0) summaryItems.push('📉 Об'єм ' + (tonDiff < -1000 ? (tonDiff/1000).toFixed(1)+'т' : tonDiff+'кг'));
-    else summaryItems.push('➡️ Об'єм однаковий');
+    if(tonDiff > 0) summaryItems.push('📈 Обєм +' + (tonDiff > 1000 ? (tonDiff/1000).toFixed(1)+'т' : tonDiff+'кг'));
+    else if(tonDiff < 0) summaryItems.push('📉 Обєм ' + (tonDiff < -1000 ? (tonDiff/1000).toFixed(1)+'т' : tonDiff+'кг'));
+    else summaryItems.push('➡️ Обєм однаковий');
     const prItems = exComparisons.filter(e=>e.maxWA!==null && e.maxWB > e.maxWA);
     if(prItems.length > 0) summaryItems.push('🏆 Новий рекорд ваги: ' + prItems.map(e=>e.name+' ('+e.maxWB+'кг)').join(', '));
     const dropItems = exComparisons.filter(e=>e.maxWA!==null && e.maxWB < e.maxWA);
