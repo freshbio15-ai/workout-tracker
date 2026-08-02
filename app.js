@@ -901,6 +901,7 @@ function App(){
     const wB = data[keyB];
     if(!wA || !wB) return null;
 
+    // ── Core stats ──────────────────────────────────────────────
     const tonA = calcTonnage(wA);
     const tonB = calcTonnage(wB);
     const tonDiff = tonB - tonA;
@@ -910,76 +911,135 @@ function App(){
     const repsA = wA.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0),0),0);
     const repsB = wB.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0),0),0);
 
+    // Quality reps = reps in hypertrophy range 6-20 with weight > 0
+    function qualityReps(exercises){
+      return exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>{
+        const r=Number(s.reps)||0; const w=Number(s.weight)||0;
+        return b+(r>=6&&r<=20&&w>0?r:0);
+      },0),0);
+    }
+    const qualA = qualityReps(wA.exercises);
+    const qualB = qualityReps(wB.exercises);
+    const qualDiff = qualB - qualA;
+
+    // ── Per-exercise comparisons ─────────────────────────────────
     const exComps = [];
     wB.exercises.forEach(exB => {
       if(!exB.name) return;
-      const exA = wA.exercises.find(e => e.name && e.name.toLowerCase().trim() === exB.name.toLowerCase().trim());
-      const maxWB = Math.max(...exB.sets.map(s=>Number(s.weight)||0));
-      const maxRB = Math.max(...exB.sets.map(s=>Number(s.reps)||0));
+      const exA = wA.exercises.find(e=>e.name&&e.name.toLowerCase().trim()===exB.name.toLowerCase().trim());
+      const maxWB = exB.sets.length ? Math.max(...exB.sets.map(s=>Number(s.weight)||0)) : 0;
+      const maxRB = exB.sets.length ? Math.max(...exB.sets.map(s=>Number(s.reps)||0)) : 0;
       const maxWA = exA ? Math.max(...exA.sets.map(s=>Number(s.weight)||0)) : null;
       const maxRA = exA ? Math.max(...exA.sets.map(s=>Number(s.reps)||0)) : null;
       const tonExA = exA ? calcExTonnage(exA) : null;
       const tonExB = calcExTonnage(exB);
-      const wDiff = maxWA !== null ? maxWB - maxWA : null;
-      const rDiff = maxRA !== null ? maxRB - maxRA : null;
-      const vDiff = tonExA !== null ? tonExB - tonExA : null;
-      const score = (wDiff > 0 ? wDiff * 3 : 0) + (rDiff > 0 ? rDiff * 2 : 0) + (vDiff > 0 ? vDiff / 50 : 0);
+      const qualExA = exA ? exA.sets.reduce((a,s)=>{const r=Number(s.reps)||0,w=Number(s.weight)||0;return a+(r>=6&&r<=20&&w>0?r:0);},0) : null;
+      const qualExB = exB.sets.reduce((a,s)=>{const r=Number(s.reps)||0,w=Number(s.weight)||0;return a+(r>=6&&r<=20&&w>0?r:0);},0);
+      const wDiff = maxWA!==null ? maxWB-maxWA : null;
+      const rDiff = maxRA!==null ? maxRB-maxRA : null;
+      const vDiff = tonExA!==null ? tonExB-tonExA : null;
+      const qDiff = qualExA!==null ? qualExB-qualExA : null;
+
+      // Hypertrophy score: quality reps > volume > PRs
+      const hyScore = (qDiff>0?qDiff*4:0)+(rDiff>0&&wDiff===0?rDiff*3:0)+(vDiff>0?vDiff/40:0)+(wDiff>0?wDiff*1.5:0);
+
       let tag = 'stable';
-      if(maxWA === null) tag = 'new';
-      else if(wDiff > 0) tag = 'pr';
-      else if(wDiff === 0 && rDiff > 0) tag = 'more_reps';
-      else if(vDiff > 0) tag = 'volume';
-      exComps.push({ name: exB.name, maxWA, maxWB, maxRA, maxRB, tonExA, tonExB, wDiff, rDiff, vDiff, score, tag });
+      if(maxWA===null) tag='new';
+      else if(qDiff>0&&wDiff===0) tag='more_reps';
+      else if(wDiff>0) tag='pr';
+      else if(vDiff>0) tag='volume';
+      exComps.push({name:exB.name,maxWA,maxWB,maxRA,maxRB,tonExA,tonExB,wDiff,rDiff,vDiff,qDiff,qualExA,qualExB,hyScore,tag});
     });
 
-    const prEx = exComps.filter(e=>e.wDiff > 0).sort((a,b)=>b.wDiff-a.wDiff);
-    const repGains = exComps.filter(e=>e.rDiff > 0 && e.wDiff === 0).sort((a,b)=>b.rDiff-a.rDiff);
-    const newEx = exComps.filter(e=>e.tag==='new');
+    // ── Hero achievements (hypertrophy-first) ───────────────────
+    const muscleLabel = (wB.muscle||'').split(',')[0].trim();
     const achievements = [];
-    prEx.forEach(e => achievements.push({ icon: '\ud83c\udfc6', text: 'New PR: ' + e.name + ' \u2014 ' + e.maxWB + ' \u043a\u0433', color: '#f59e0b' }));
-    repGains.forEach(e => achievements.push({ icon: '\ud83d\udcc8', text: '+' + e.rDiff + ' \u043f\u043e\u0432\u0442. \u2014 ' + e.name, color: 'var(--green2)' }));
-    newEx.forEach(e => achievements.push({ icon: '\u2728', text: '\u041d\u043e\u0432\u0430 \u0432\u043f\u0440\u0430\u0432\u0430: ' + e.name, color: 'var(--accent2)' }));
-    const topAchievements = achievements.slice(0, 3);
+    const repGains = exComps.filter(e=>e.rDiff>0&&e.wDiff===0).sort((a,b)=>b.rDiff-a.rDiff);
+    const qualGains = exComps.filter(e=>e.qDiff>0).sort((a,b)=>b.qDiff-a.qDiff);
+    const prEx = exComps.filter(e=>e.wDiff>0).sort((a,b)=>b.wDiff-a.wDiff);
+    const newEx = exComps.filter(e=>e.tag==='new');
+    repGains.forEach(e=>achievements.push({icon:'\ud83d\udcc8',text:'+'+e.rDiff+' \u043f\u043e\u0432\u0442. \u2014 '+e.name,color:'var(--green2)'}));
+    if(qualDiff>0&&repGains.length===0) achievements.push({icon:'\u2b50',text:'\u0411\u0456\u043b\u044c\u0448\u0435 \u044f\u043a\u0456\u0441\u043d\u0438\u0445 \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u044c: +'+qualDiff,color:'var(--green2)'});
+    prEx.forEach(e=>achievements.push({icon:'\ud83c\udfc6',text:'New PR: '+e.name+' \u2014 '+e.maxWB+' \u043a\u0433',color:'#f59e0b'}));
+    newEx.forEach(e=>achievements.push({icon:'\u2728',text:'\u041d\u043e\u0432\u0430 \u0432\u043f\u0440\u0430\u0432\u0430: '+e.name,color:'var(--accent2)'}));
+    const topAchievements = achievements.slice(0,3);
 
-    const keyEx = exComps.filter(e=>e.score > 0).sort((a,b)=>b.score-a.score)[0] || null;
-    const anyStrengthUp = prEx.length > 0 || repGains.length > 0;
-    const volChange = Math.abs(tonPct) < 2 ? 'stable' : tonPct > 0 ? 'up' : 'down';
+    // ── Best growth indicator (hypertrophy score) ────────────────
+    const bestGrowth = exComps.filter(e=>e.hyScore>0).sort((a,b)=>b.hyScore-a.hyScore)[0]||null;
+
+    // ── Auto conclusion (hypertrophy-focused) ───────────────────
+    const anyQualUp = qualDiff > 0;
+    const anyRepUp = repGains.length > 0;
+    const anyPR = prEx.length > 0;
+    const volChange = Math.abs(tonPct)<2?'stable':tonPct>0?'up':'down';
     let conclusion = '';
-    if(anyStrengthUp && volChange === 'stable') conclusion = '\u0421\u0438\u043b\u0430 \u0437\u0440\u043e\u0441\u043b\u0430, \u043e\u0431\u0454\u043c \u0441\u0442\u0430\u0431\u0456\u043b\u044c\u043d\u0438\u0439.';
-    else if(anyStrengthUp && volChange === 'up') conclusion = '\u041f\u0440\u043e\u0433\u0440\u0435\u0441 \u043f\u043e \u0432\u0441\u0456\u0445 \u043f\u043e\u043a\u0430\u0437\u043d\u0438\u043a\u0430\u0445!';
-    else if(anyStrengthUp && volChange === 'down') conclusion = '\u0421\u0438\u043b\u0430 \u0437\u0440\u043e\u0441\u043b\u0430, \u0456\u043d\u0442\u0435\u043d\u0441\u0438\u0432\u043d\u0456\u0448\u0435 \u0442\u0440\u0435\u043d\u0443\u0432\u0430\u043d\u043d\u044f.';
-    else if(volChange === 'up') conclusion = '\u0411\u0456\u043b\u044c\u0448\u0435 \u043e\u0431\u0454\u043c\u0443, \u0440\u043e\u0431\u043e\u0442\u0430 \u0437\u0440\u043e\u0431\u043b\u0435\u043d\u0430.';
-    else if(exComps.some(e=>e.wDiff < 0 && e.rDiff < 0)) conclusion = '\u0412\u0430\u0440\u0442\u043e \u0434\u0430\u0442\u0438 \u0431\u0456\u043b\u044c\u0448\u0435 \u0447\u0430\u0441\u0443 \u043d\u0430 \u0432\u0456\u0434\u043f\u043e\u0447\u0438\u043d\u043e\u043a.';
-    else conclusion = '\u0421\u0442\u0430\u0431\u0456\u043b\u044c\u043d\u0435 \u0442\u0440\u0435\u043d\u0443\u0432\u0430\u043d\u043d\u044f, \u0442\u0440\u0438\u043c\u0430\u0439 \u0440\u0438\u0442\u043c.';
-    if(keyEx){
-      if(keyEx.rDiff > 0) conclusion += ' \u041d\u0430\u0439\u0431\u0456\u043b\u044c\u0448\u0435 \u0437\u0440\u043e\u0441\u043b\u0430: ' + keyEx.name + ' (+' + keyEx.rDiff + ' \u043f\u043e\u0432\u0442).';
-      else if(keyEx.wDiff > 0) conclusion += ' \u0420\u0435\u043a\u043e\u0440\u0434 \u0432\u0430\u0433\u0438: ' + keyEx.name + ' (' + keyEx.maxWB + '\u043a\u0433).';
+    const muscleStr = muscleLabel ? ' \u043c\u0456\u0437 '+muscleLabel.toLowerCase() : '';
+    if(anyRepUp&&anyQualUp&&volChange==='stable')
+      conclusion='\u041a\u0440\u0430\u0449\u0438\u0439 \u0441\u0442\u0438\u043c\u0443\u043b \u0434\u043b\u044f \u0440\u043e\u0441\u0442\u0443'+muscleStr+'. \u0411\u0456\u043b\u044c\u0448\u0435 \u044f\u043a\u0456\u0441\u043d\u0438\u0445 \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u044c \u043f\u0440\u0438 \u0442\u0456\u0439 \u0441\u0430\u043c\u0456\u0439 \u0432\u0430\u0437\u0456.';
+    else if(anyRepUp&&volChange==='up')
+      conclusion='\u0421\u0438\u043b\u044c\u043d\u0435 \u0442\u0440\u0435\u043d\u0443\u0432\u0430\u043d\u043d\u044f: \u0431\u0456\u043b\u044c\u0448\u0435 \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u044c \u0456 \u0432\u0438\u0449\u0438\u0439 \u043e\u0431\u0454\u043c.';
+    else if(anyRepUp)
+      conclusion='\u041f\u0440\u043e\u0433\u0440\u0435\u0441 \u043f\u043e \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u043d\u044f\u0445'+muscleStr+'. \u041c\u0456\u0437 \u043e\u0442\u0440\u0438\u043c\u0443\u0454 \u0431\u0456\u043b\u044c\u0448\u0435 \u0440\u043e\u0431\u043e\u0442\u0438.';
+    else if(anyPR&&volChange==='stable')
+      conclusion='\u041d\u043e\u0432\u0438\u0439 \u0440ó\u043a\u043e\u0440\u0434 \u0432\u0430\u0433\u0438. \u0421\u0442\u0435\u0436 \u0437\u0430 \u044f\u043a\u0456\u0441\u0442\u044e \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u044c \u0432 \u043d\u0430\u0441\u0442\u0443\u043f\u043d\u043e\u043c\u0443 \u0442\u0440\u0435\u043d\u0443\u0432\u0430\u043d\u043d\u0456.';
+    else if(anyQualUp)
+      conclusion='\u042f\u043a\u0456\u0441\u043d\u0456\u0448\u0430 \u0440\u043e\u0431\u043e\u0442\u0430: \u0431\u0456\u043b\u044c\u0448\u0435 \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u044c \u0443 \u0434\u0456\u0430\u043f\u0430\u0437\u043e\u043d\u0456 \u0433\u0456\u043f\u0435\u0440\u0442\u0440\u043e\u0444\u0456\u0457.';
+    else if(exComps.some(e=>e.wDiff<0&&e.rDiff<0))
+      conclusion='\u0412\u0430\u0440\u0442\u043e \u0434\u0430\u0442\u0438 \u0431\u0456\u043b\u044c\u0448\u0435 \u0447\u0430\u0441\u0443 \u043d\u0430 \u0432\u0456\u0434\u043f\u043e\u0447\u0438\u043d\u043e\u043a \u0430\u0431\u043e \u0437\u043c\u0435\u043d\u0448\u0438\u0442\u0438 \u0440\u043e\u0431\u043e\u0447\u0438\u0439 \u043e\u0431\u0454\u043c.';
+    else
+      conclusion='\u0421\u0442\u0430\u0431\u0456\u043b\u044c\u043d\u0430 \u0440\u043e\u0431\u043e\u0442\u0430. \u041f\u0456\u0434\u0442\u0440\u0438\u043c\u0443\u0439 \u0440\u0438\u0442\u043c \u0456 \u043f\u0440\u043e\u0433\u0440\u0435\u0441\u0443\u0439 \u0432 \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u043d\u044f\u0445.';
+    if(bestGrowth&&bestGrowth.rDiff>0)
+      conclusion+=' \u041d\u0430\u0439\u0431\u0456\u043b\u044c\u0448\u0438\u0439 \u0440\u0456\u0441\u0442: '+bestGrowth.name+' (+'+bestGrowth.rDiff+' \u043f\u043e\u0432\u0442).';
+    else if(bestGrowth&&bestGrowth.wDiff>0)
+      conclusion+=' \u0420\u0435\u043a\u043e\u0440\u0434: '+bestGrowth.name+' ('+bestGrowth.maxWB+'\u043a\u0433).';
+
+    // ── Recovery & Performance ───────────────────────────────────
+    let recoveryMsg = '', recoveryColor = 'var(--text2)', recoveryIcon = '\u2764\ufe0f';
+    const volumeDown = tonB < tonA * 0.95;
+    const setsDown = setsB < setsA;
+    if((anyRepUp||anyQualUp)&&(volumeDown||setsDown)){
+      recoveryMsg='\u041f\u0440\u043e\u0433\u0440\u0435\u0441 \u043d\u0435\u0437\u0432\u0430\u0436\u0430\u044e\u0447\u0438 \u043d\u0430 \u0432\u0442\u043e\u043c\u0443. \u0421\u0435 \u043e\u0437\u043d\u0430\u043a\u0430 \u0430\u0434\u0430\u043f\u0442\u0430\u0446\u0456\u0457.';
+      recoveryColor='var(--green2)'; recoveryIcon='\ud83d\udcaa';
+    } else if(anyRepUp&&volChange==='up'){
+      recoveryMsg='\u0412\u0456\u0434\u043c\u0456\u043d\u043d\u0435 \u0432\u0456\u0434\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u044f. \u041f\u043e\u0432\u043d\u0430 \u043f\u0440\u043e\u0434\u0443\u043a\u0442³\u0432\u043d\u0456\u0441\u0442\u044c.';
+      recoveryColor='var(--green2)'; recoveryIcon='\u26a1';
+    } else if(volChange==='down'&&!anyRepUp&&!anyPR){
+      recoveryMsg='\u0421\u0445\u043e\u0436\u0430 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0438\u0432\u043d\u0456\u0441\u0442\u044c \u043f\u0440\u0438 \u043d\u0438\u0436\u0447\u043e\u043c\u0443 \u043e\u0431\u0454\u043c\u0456. \u041c\u043e\u0436\u043b\u0438\u0432\u0435, \u043d\u0435\u0434\u043e\u0441\u0442\u0430\u0442\u043d\u044c\u043e \u0432\u0456\u0434\u043f\u043e\u0447\u0438\u043dк\u0443.';
+      recoveryColor='var(--orange)'; recoveryIcon='\ud83d\ude34';
+    } else {
+      recoveryMsg='\u0421\u0442\u0430\u0431\u0456\u043b\u044c\u043d\u0435 \u0432\u0456\u0434\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u044f \u0456 \u0435\u043d\u0435\u0440\u0433\u0456\u044f.';
+      recoveryColor='var(--text2)'; recoveryIcon='\u2714\ufe0f';
     }
 
+    // ── Cycle history helper ─────────────────────────────────────
     const allSortedKeys = Object.keys(data).sort();
     function getCycleHistory(exName){
-      const hist = [];
-      allSortedKeys.forEach(k => {
-        const w = data[k]; if(!w||!w.exercises) return;
-        const ex = w.exercises.find(e => e.name && e.name.toLowerCase().trim() === exName.toLowerCase().trim());
+      const hist=[];
+      allSortedKeys.forEach(k=>{
+        const w=data[k]; if(!w||!w.exercises) return;
+        const ex=w.exercises.find(e=>e.name&&e.name.toLowerCase().trim()===exName.toLowerCase().trim());
         if(!ex||!ex.sets.length) return;
-        hist.push({ key: k, maxW: Math.max(...ex.sets.map(s=>Number(s.weight)||0)), maxR: Math.max(...ex.sets.map(s=>Number(s.reps)||0)) });
+        const maxW=Math.max(...ex.sets.map(s=>Number(s.weight)||0));
+        const maxR=Math.max(...ex.sets.map(s=>Number(s.reps)||0));
+        const qr=ex.sets.reduce((a,s)=>{const r=Number(s.reps)||0,w=Number(s.weight)||0;return a+(r>=6&&r<=20&&w>0?r:0);},0);
+        hist.push({key:k,maxW,maxR,qr});
       });
       return hist.slice(-5);
     }
 
     const TAG_CONFIG = {
-      pr:        { label: 'New PR',           bg: 'rgba(245,158,11,.15)',  color: '#f59e0b',        border: 'rgba(245,158,11,.3)' },
-      more_reps: { label: '+Rep PR',          bg: 'rgba(16,185,129,.12)',  color: 'var(--green2)',  border: 'rgba(16,185,129,.25)' },
-      volume:    { label: 'More volume',      bg: 'rgba(16,185,129,.08)',  color: 'var(--green2)',  border: 'rgba(16,185,129,.15)' },
-      stable:    { label: 'Stable',           bg: 'rgba(255,255,255,.05)', color: 'var(--text3)',   border: 'var(--border)' },
-      new:       { label: 'New',              bg: 'rgba(124,58,237,.12)',  color: 'var(--accent2)', border: 'rgba(124,58,237,.25)' },
+      pr:       {label:'New PR',      bg:'rgba(245,158,11,.15)',  color:'#f59e0b',        border:'rgba(245,158,11,.3)'},
+      more_reps:{label:'+Rep PR',     bg:'rgba(16,185,129,.12)',  color:'var(--green2)',  border:'rgba(16,185,129,.25)'},
+      volume:   {label:'More volume', bg:'rgba(16,185,129,.08)',  color:'var(--green2)',  border:'rgba(16,185,129,.15)'},
+      stable:   {label:'Stable',      bg:'rgba(255,255,255,.05)', color:'var(--text3)',   border:'var(--border)'},
+      new:      {label:'New',         bg:'rgba(124,58,237,.12)',  color:'var(--accent2)', border:'rgba(124,58,237,.25)'},
     };
 
     return React.createElement('div',{className:'cc-overlay',onClick:()=>setCompareModal(null)},
       React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),
         style:{maxHeight:'92vh',overflow:'auto',padding:'0',borderRadius:'24px',display:'flex',flexDirection:'column'}},
 
+        // ── Sticky header ──
         React.createElement('div',{style:{
           position:'sticky',top:0,zIndex:10,background:'var(--bg2)',
           borderBottom:'1px solid var(--border)',padding:'16px 20px 12px',
@@ -987,7 +1047,7 @@ function App(){
         }},
           React.createElement('div',null,
             React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',marginBottom:'2px'}},'\u041f\u043e\u0440\u0456\u0432\u043d\u044f\u043d\u043d\u044f'),
-            React.createElement('div',{style:{fontSize:'16px',fontWeight:800}},
+            React.createElement('div',{style:{fontSize:'16px',fontWeight:800,color:'var(--text1)'}},
               fmtShort(keyA),
               React.createElement('span',{style:{color:'var(--text3)',margin:'0 8px'}},'\u2192'),
               fmtShort(keyB)
@@ -996,13 +1056,14 @@ function App(){
           React.createElement('button',{className:'cc-btn',onClick:()=>setCompareModal(null)},React.createElement(XIcon))
         ),
 
-        React.createElement('div',{style:{padding:'20px',display:'flex',flexDirection:'column',gap:'16px'}},
+        React.createElement('div',{style:{padding:'18px 16px',display:'flex',flexDirection:'column',gap:'14px'}},
 
-          topAchievements.length > 0 && React.createElement('div',{style:{
-            background:'linear-gradient(135deg,rgba(124,58,237,.12),rgba(16,185,129,.06))',
-            border:'1px solid rgba(124,58,237,.2)',borderRadius:'18px',padding:'16px'
+          // ── 1. Hero achievements ──
+          topAchievements.length>0 && React.createElement('div',{style:{
+            background:'linear-gradient(135deg,rgba(16,185,129,.1),rgba(124,58,237,.06))',
+            border:'1px solid rgba(16,185,129,.2)',borderRadius:'18px',padding:'16px'
           }},
-            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--accent2)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'12px'}},'\u041f\u0440\u043e\u0433\u0440\u0435\u0441'),
+            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--green2)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'12px'}},'\u041f\u0440\u043e\u0433\u0440\u0435\u0441 \u043f\u043e \u0433\u0456\u043f\u0435\u0440\u0442\u0440\u043e\u0444\u0456\u0457'),
             topAchievements.map((a,i)=>React.createElement('div',{key:i,style:{
               display:'flex',alignItems:'center',gap:'10px',marginBottom:i<topAchievements.length-1?'10px':0
             }},
@@ -1011,28 +1072,49 @@ function App(){
             ))
           ),
 
+          // ── 2. Auto conclusion ──
           React.createElement('div',{style:{
             background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',
-            padding:'14px 16px',fontSize:'14px',fontWeight:600,color:'var(--text1)',lineHeight:1.55
+            padding:'14px 16px',fontSize:'14px',fontWeight:600,color:'var(--text1)',lineHeight:1.6
           }},conclusion),
 
-          keyEx && React.createElement('div',{style:{
-            background:'rgba(245,158,11,.07)',border:'1px solid rgba(245,158,11,.2)',borderRadius:'16px',padding:'14px 16px'
+          // ── 3. Best Growth Indicator ──
+          bestGrowth && React.createElement('div',{style:{
+            background:'linear-gradient(135deg,rgba(16,185,129,.08),rgba(16,185,129,.03))',
+            border:'1px solid rgba(16,185,129,.2)',borderRadius:'16px',padding:'14px 16px'
           }},
-            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'#f59e0b',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:'8px'}},'\u041a\u043b\u044e\u0447\u043e\u0432\u0430 \u0432\u043f\u0440\u0430\u0432\u0430'),
-            React.createElement('div',{style:{fontSize:'16px',fontWeight:800,color:'var(--text1)',marginBottom:'8px'}},'\ud83c\udfc6 '+keyEx.name),
-            React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'4px'}},
-              keyEx.wDiff > 0 && React.createElement('div',{style:{fontSize:'13px',color:'#f59e0b',fontWeight:600}},'\u2191 \u0412\u0430\u0433\u0430 '+keyEx.maxWA+' \u2192 '+keyEx.maxWB+' \u043a\u0433'),
-              keyEx.rDiff > 0 && React.createElement('div',{style:{fontSize:'13px',color:'var(--green2)',fontWeight:600}},'\u2191 \u041f\u043e\u0432\u0442\u043e\u0440\u0438 +'+keyEx.rDiff),
-              keyEx.vDiff > 0 && React.createElement('div',{style:{fontSize:'12px',color:'var(--text2)'}},'\u2191 \u041e\u0431\u0454\u043c +'+keyEx.vDiff+'\u043a\u0433')
+            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--green2)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:'8px'}},'\ud83c\udf31 \u041d\u0430\u0439\u043a\u0440\u0430\u0449\u0438\u0439 \u0441\u0438\u0433\u043d\u0430\u043b \u0440\u043e\u0441\u0442\u0443'),
+            React.createElement('div',{style:{fontSize:'16px',fontWeight:800,color:'var(--text1)',marginBottom:'8px'}},bestGrowth.name),
+            React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'3px'}},
+              bestGrowth.rDiff>0 && React.createElement('div',{style:{fontSize:'13px',color:'var(--green2)',fontWeight:600}},
+                '\u2191 +'+bestGrowth.rDiff+' \u043f\u043e\u0432\u0442. \u043f\u0440\u0438 '+(bestGrowth.wDiff===0?'\u0442\u0456\u0439 \u0441\u0430\u043c\u0456\u0439 \u0432\u0430\u0437\u0456':'\u043d\u043e\u0432\u0456\u0439 \u0432\u0430\u0437\u0456')),
+              bestGrowth.qDiff>0 && React.createElement('div',{style:{fontSize:'13px',color:'var(--green2)',fontWeight:600}},
+                '\u2191 +'+bestGrowth.qDiff+' \u044f\u043a\u0456\u0441\u043d\u0438\u0445 \u043f\u043e\u0432\u0442\u043e\u0440\u0435\u043d\u044c'),
+              bestGrowth.vDiff>0 && React.createElement('div',{style:{fontSize:'12px',color:'var(--text2)'}},
+                '\u2191 +'+bestGrowth.vDiff+'\u043a\u0433 \u0435\u0444\u0435\u043a\u0442\u0438\u0432\u043d\u043e\u0433\u043e \u043e\u0431\u0454\u043c\u0443'),
+              bestGrowth.wDiff>0 && React.createElement('div',{style:{fontSize:'12px',color:'#f59e0b'}},
+                '\u2191 \u0412\u0430\u0433\u0430 '+bestGrowth.maxWA+'\u2192'+bestGrowth.maxWB+'\u043a\u0433')
             )
           ),
 
-          exComps.length > 0 && React.createElement('div',null,
+          // ── 4. Recovery & Performance ──
+          React.createElement('div',{style:{
+            background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',padding:'12px 14px',
+            display:'flex',alignItems:'flex-start',gap:'10px'
+          }},
+            React.createElement('span',{style:{fontSize:'20px',lineHeight:1,flexShrink:0}},recoveryIcon),
+            React.createElement('div',null,
+              React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:'4px'}},'\u0412\u0456\u0434\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u044f \u0456 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u0438\u0432\u043d\u0456\u0441\u0442\u044c'),
+              React.createElement('div',{style:{fontSize:'13px',fontWeight:600,color:recoveryColor,lineHeight:1.5}},recoveryMsg)
+            )
+          ),
+
+          // ── 5. Exercise cards ──
+          exComps.length>0 && React.createElement('div',null,
             React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'10px'}},'\u0412\u043f\u0440\u0430\u0432\u0438'),
-            exComps.map((ex,i) => {
-              const tag = TAG_CONFIG[ex.tag] || TAG_CONFIG.stable;
-              const cycleHist = getCycleHistory(ex.name);
+            exComps.map((ex,i)=>{
+              const tag=TAG_CONFIG[ex.tag]||TAG_CONFIG.stable;
+              const cycleHist=getCycleHistory(ex.name);
               return React.createElement('div',{key:i,style:{
                 background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'16px',padding:'14px',marginBottom:'10px'
               }},
@@ -1044,45 +1126,58 @@ function App(){
                   }},tag.label)
                 ),
                 React.createElement('div',{style:{display:'flex',flexDirection:'column',gap:'5px'}},
-                  ex.maxWA !== null
-                    ? ex.wDiff !== 0 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                  // Weight — show if changed OR always for new
+                  ex.maxWA===null
+                    ? React.createElement('div',{style:{display:'flex',justifyContent:'space-between'}},
+                        React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'\u0412\u0430\u0433\u0430'),
+                        React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:'var(--accent2)'}},ex.maxWB+' \u043a\u0433'))
+                    : React.createElement('div',{style:{display:'flex',justifyContent:'space-between'}},
                         React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Max \u0432\u0430\u0433\u0430'),
-                        React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:ex.wDiff>0?'#f59e0b':'var(--text2)'}},
-                          ex.maxWA+' \u2192 '+ex.maxWB+' \u043a\u0433'+(ex.wDiff>0?' \ud83c\udfc6':''))
-                      )
-                    : React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
-                        React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Max \u0432\u0430\u0433\u0430'),
-                        React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:'var(--accent2)'}},ex.maxWB+' \u043a\u0433')
+                        ex.wDiff!==0
+                          ? React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:ex.wDiff>0?'#f59e0b':'var(--text2)'}},ex.maxWA+' \u2192 '+ex.maxWB+' \u043a\u0433'+(ex.wDiff>0?' \ud83c\udfc6':''))
+                          : React.createElement('span',{style:{fontSize:'13px',color:'var(--text2)'}},ex.maxWB+' \u043a\u0433')
                       ),
-                  ex.maxRA !== null && ex.rDiff !== 0 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
+                  // Reps — only if changed
+                  ex.maxRA!==null && ex.rDiff!==0 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between'}},
                     React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Max \u043f\u043e\u0432\u0442.'),
                     React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:ex.rDiff>0?'var(--green2)':'var(--red)'}},
-                      ex.maxRA+' \u2192 '+ex.maxRB+(ex.rDiff>0?' (+'+ex.rDiff+')':' ('+ex.rDiff+')'))
+                      ex.maxRA+' \u2192 '+ex.maxRB+(ex.rDiff>0?' (+'+ex.rDiff+')':' ('+ex.rDiff+')')
+                    )
                   ),
-                  ex.vDiff !== null && Math.abs(ex.vDiff/(ex.tonExA||1)) >= 0.02 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center'}},
-                    React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'Obem'),
+                  // Quality reps — if changed
+                  ex.qualExA!==null && ex.qDiff!==0 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between'}},
+                    React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'\u042f\u043a\u0456\u0441\u043d\u0456 \u043f\u043e\u0432\u0442. (6\u201320)'),
+                    React.createElement('span',{style:{fontSize:'13px',fontWeight:700,color:ex.qDiff>0?'var(--green2)':'var(--text3)'}},
+                      ex.qualExA+' \u2192 '+ex.qualExB+(ex.qDiff>0?' (+'+ex.qDiff+')':' ('+ex.qDiff+')')
+                    )
+                  ),
+                  // Volume — only if changed >2%
+                  ex.vDiff!==null && Math.abs(ex.vDiff/(ex.tonExA||1))>=0.02 && React.createElement('div',{style:{display:'flex',justifyContent:'space-between'}},
+                    React.createElement('span',{style:{fontSize:'12px',color:'var(--text3)'}},'\u0415\u0444. \u043e\u0431\u0454\u043c'),
                     React.createElement('span',{style:{fontSize:'13px',fontWeight:600,color:ex.vDiff>0?'var(--green2)':'var(--text3)'}},
                       (ex.tonExA>1000?(ex.tonExA/1000).toFixed(1)+'\u0442':ex.tonExA+'\u043a\u0433')+
                       ' \u2192 '+(ex.tonExB>1000?(ex.tonExB/1000).toFixed(1)+'\u0442':ex.tonExB+'\u043a\u0433')+
                       (ex.vDiff>0?' (+'+ex.vDiff+')':' ('+ex.vDiff+')')
                     )
                   ),
-                  ex.tag === 'stable' && ex.maxWA !== null && React.createElement('div',{style:{fontSize:'12px',color:'var(--text3)'}},'\u2248 \u0411\u0435\u0437 \u0437\u043c\u0456\u043d')
+                  ex.tag==='stable'&&ex.maxWA!==null && React.createElement('div',{style:{fontSize:'12px',color:'var(--text3)'}},'\u2248 \u0411\u0435\u0437 \u0437\u043c\u0456\u043d')
                 ),
-                cycleHist.length >= 2 && React.createElement('div',{style:{marginTop:'10px',paddingTop:'10px',borderTop:'1px solid var(--border)'}},
-                  React.createElement('div',{style:{fontSize:'9px',color:'var(--text3)',marginBottom:'6px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}},'\u0422\u0440\u0435\u043d\u0434 \u043f\u043e \u0446\u0438\u043a\u043b\u0443'),
+                // Cycle trend
+                cycleHist.length>=2 && React.createElement('div',{style:{marginTop:'10px',paddingTop:'10px',borderTop:'1px solid var(--border)'}},
+                  React.createElement('div',{style:{fontSize:'9px',color:'var(--text3)',marginBottom:'6px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.05em'}},'\u0422\u0440\u0435\u043d\u0434'),
                   React.createElement('div',{style:{display:'flex',gap:'6px',overflowX:'auto'}},
                     cycleHist.map((h,j)=>{
-                      const isCur = h.key===keyB;
-                      return React.createElement('div',{key:j,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'3px',flexShrink:0}},
+                      const isCur=h.key===keyB;
+                      return React.createElement('div',{key:j,style:{display:'flex',flexDirection:'column',alignItems:'center',gap:'2px',flexShrink:0}},
                         React.createElement('div',{style:{
                           fontSize:'10px',fontWeight:700,
                           color:isCur?'var(--accent2)':'var(--text2)',
                           background:isCur?'rgba(124,58,237,.15)':'var(--bg4)',
-                          padding:'4px 7px',borderRadius:'8px',
+                          padding:'3px 6px',borderRadius:'7px',
                           border:isCur?'1px solid var(--accent-dark)':'1px solid var(--border)',
                           whiteSpace:'nowrap'
                         }},h.maxW+'\xd7'+h.maxR),
+                        h.qr>0&&React.createElement('div',{style:{fontSize:'8px',color:'var(--green2)',fontWeight:600}},h.qr+'q'),
                         React.createElement('div',{style:{fontSize:'8px',color:'var(--text3)'}},fmtShort(h.key))
                       );
                     })
@@ -1092,20 +1187,21 @@ function App(){
             })
           ),
 
-          React.createElement('div',{style:{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',padding:'12px 16px'}},
-            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'10px'}},'\u0417\u0430\u0433\u0430\u043b\u044c\u043d\u0430 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430'),
+          // ── 6. Overall stats (last, compact) ──
+          React.createElement('div',{style:{background:'var(--bg3)',border:'1px solid var(--border)',borderRadius:'14px',padding:'12px 14px'}},
+            React.createElement('div',{style:{fontSize:'10px',fontWeight:800,color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.08em',marginBottom:'10px'}},'\u041e\u0441\u043d\u043e\u0432\u043d\u0430 \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043a\u0430'),
             React.createElement('div',{style:{display:'flex',justifyContent:'space-between'}},
-              [['\u041e\u0431\u0454\u043c', tonA>1000?(tonA/1000).toFixed(1)+'\u0442':tonA+'\u043a\u0433', tonB>1000?(tonB/1000).toFixed(1)+'\u0442':tonB+'\u043a\u0433', tonPct],
-               ['\u041f\u0456\u0434\u0445\u043e\u0434\u0438', setsA, setsB, setsA>0?Math.round((setsB-setsA)/setsA*100):0],
-               ['\u041f\u043e\u0432\u0442\u043e\u0440\u0438', repsA, repsB, repsA>0?Math.round((repsB-repsA)/repsA*100):0]].map(([lbl,vA,vB,pct],i)=>{
-                const isStable = Math.abs(pct) < 2;
+              [['\u041e\u0431\u0454\u043c',tonA>1000?(tonA/1000).toFixed(1)+'\u0442':tonA+'\u043a\u0433',tonB>1000?(tonB/1000).toFixed(1)+'\u0442':tonB+'\u043a\u0433',tonPct],
+               ['\u042f\u043a. \u043f\u043e\u0432\u0442',qualA,qualB,qualA>0?Math.round(qualDiff/qualA*100):0],
+               ['\u041f\u0456\u0434\u0445\u043e\u0434\u0438',setsA,setsB,setsA>0?Math.round((setsB-setsA)/setsA*100):0]].map(([lbl,vA,vB,pct],i)=>{
+                const isStable=Math.abs(pct)<2;
                 return React.createElement('div',{key:i,style:{textAlign:'center',flex:1}},
-                  React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'4px',fontWeight:600}},lbl),
+                  React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'3px',fontWeight:600}},lbl),
                   isStable
                     ? React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:'var(--text2)'}},String(vB))
                     : React.createElement('div',null,
                         React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)'}},String(vA)),
-                        React.createElement('div',{style:{fontSize:'13px',fontWeight:800,color:pct>0?'var(--green2)':pct<-2?'var(--red)':'var(--text1)'}},String(vB))
+                        React.createElement('div',{style:{fontSize:'13px',fontWeight:800,color:pct>0?'var(--green2)':pct<-5?'var(--red)':'var(--text1)'}},String(vB))
                       )
                 );
               })
