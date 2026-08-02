@@ -244,6 +244,7 @@ function App(){
   const [measPickerMonth, setMeasPickerMonth] = useState(new Date().getMonth());
   const [measMuscleName, setMeasMuscleName] = useState('Груди');
   const [showMuscleModal, setShowMuscleModal] = useState(false);
+  const [compareModal, setCompareModal] = useState(null); // {keyA, keyB} or null
 
   const MUSCLE_MEASUREMENTS = [
     {label:'Груди',          icon:'chest'},
@@ -838,18 +839,169 @@ function App(){
           )
         );
       }),
-      // edit button
-      React.createElement('button',{className:'save-btn',style:{marginTop:'16px',background:'var(--bg4)',boxShadow:'none',border:'1px solid var(--border)'},onClick:()=>{
-        const[y,m]=k.split('-').map(Number);
-        const workout = data[k];
-        setCalDate(new Date(y,m-1,1));
-        setSelected(k);
-        // Завжди встановлюємо draft напряму — useEffect не спрацює якщо selected вже був цим ключем
-        setDraft(sanitizeDraft(workout));
-        setTab('calendar');
-        setHistoryDetail(null);
-      }},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(EditIcon), 'Редагувати тренування')),
+      // compare + edit + delete buttons
+      React.createElement('div',{style:{display:'flex',gap:'8px',marginTop:'16px'}},
+        React.createElement('button',{
+          className:'save-btn',
+          style:{flex:1,background:'var(--bg4)',boxShadow:'none',border:'1px solid var(--border)'},
+          onClick:()=>{
+            // Find previous workout with same muscles
+            const allKeys = Object.keys(data).sort();
+            const idx = allKeys.indexOf(k);
+            const muscle = w.muscle || '';
+            // Search backwards for workout with overlapping muscles
+            let prevKey = null;
+            for(let i = idx-1; i >= 0; i--){
+              const pk = allKeys[i];
+              const pw = data[pk];
+              if(!pw || !pw.exercises || pw.exercises.length === 0) continue;
+              // match if same muscle tag OR any exercise name matches
+              const pwMuscle = pw.muscle || '';
+              const sameTag = muscle && pwMuscle && (
+                muscle.split(',').map(s=>s.trim()).some(m => pwMuscle.includes(m)) ||
+                pwMuscle.split(',').map(s=>s.trim()).some(m => muscle.includes(m))
+              );
+              const exNames = w.exercises.map(e=>e.name.toLowerCase().trim()).filter(Boolean);
+              const pwExNames = pw.exercises.map(e=>e.name.toLowerCase().trim()).filter(Boolean);
+              const sameEx = exNames.some(n => pwExNames.includes(n));
+              if(sameTag || sameEx){ prevKey = pk; break; }
+            }
+            if(!prevKey){
+              // Just take the previous workout regardless
+              const allKeys2 = Object.keys(data).sort();
+              const i = allKeys2.indexOf(k);
+              if(i > 0) prevKey = allKeys2[i-1];
+            }
+            if(prevKey) setCompareModal({keyA: prevKey, keyB: k});
+            else flash('Немає попередніх тренувань для порівняння');
+          }
+        }, React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, '⚡ Порівняти')),
+        React.createElement('button',{
+          className:'save-btn',
+          style:{flex:1,background:'var(--bg4)',boxShadow:'none',border:'1px solid var(--border)'},
+          onClick:()=>{
+            const[y,m]=k.split('-').map(Number);
+            const workout = data[k];
+            setCalDate(new Date(y,m-1,1));
+            setSelected(k);
+            setDraft(sanitizeDraft(workout));
+            setTab('calendar');
+            setHistoryDetail(null);
+          }
+        }, React.createElement('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(EditIcon), 'Ред.'))
+      ),
       React.createElement('button',{className:'del-day-btn',style:{marginTop:'12px'},onClick:()=>deleteDay(k)},React.createElement('div', {style:{display:'flex',alignItems:'center',justifyContent:'center',gap:'6px'}}, React.createElement(TrashIcon), 'Видалити'))
+    );
+  }
+
+  function renderCompareModal(){
+    if(!compareModal) return null;
+    const { keyA, keyB } = compareModal;
+    const wA = data[keyA]; // older
+    const wB = data[keyB]; // newer (current)
+    if(!wA || !wB) return null;
+
+    const tonA = calcTonnage(wA);
+    const tonB = calcTonnage(wB);
+    const tonDiff = tonB - tonA;
+    const tonPct = tonA > 0 ? Math.round((tonDiff/tonA)*100) : 0;
+
+    const setsA = wA.exercises.reduce((a,e)=>a+e.sets.length,0);
+    const setsB = wB.exercises.reduce((a,e)=>a+e.sets.length,0);
+    const repsA = wA.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0),0),0);
+    const repsB = wB.exercises.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+(Number(s.reps)||0),0),0);
+
+    // Match exercises by name
+    const exComparisons = [];
+    wB.exercises.forEach(exB => {
+      if(!exB.name) return;
+      const exA = wA.exercises.find(e => e.name && e.name.toLowerCase().trim() === exB.name.toLowerCase().trim());
+      const maxWB = Math.max(...exB.sets.map(s=>Number(s.weight)||0));
+      const maxRA = exA ? Math.max(...exA.sets.map(s=>Number(s.reps)||0)) : null;
+      const maxRB = Math.max(...exB.sets.map(s=>Number(s.reps)||0));
+      const maxWA = exA ? Math.max(...exA.sets.map(s=>Number(s.weight)||0)) : null;
+      const tonExA = exA ? calcExTonnage(exA) : null;
+      const tonExB = calcExTonnage(exB);
+      exComparisons.push({ name: exB.name, maxWA, maxWB, maxRA, maxRB, tonExA, tonExB, found: !!exA });
+    });
+
+    const arrow = (a, b, unit='') => {
+      if(a === null || a === undefined) return React.createElement('span',{style:{color:'var(--text3)',fontSize:'12px'}},'нова');
+      const diff = b - a;
+      if(diff === 0) return React.createElement('span',{style:{color:'var(--text3)',fontWeight:700}},'=');
+      const color = diff > 0 ? 'var(--green2)' : 'var(--red)';
+      const sign = diff > 0 ? '▲' : '▼';
+      return React.createElement('span',{style:{color,fontWeight:700,fontSize:'13px'}}, sign+' '+(diff>0?'+':'')+diff+(unit?' '+unit:''));
+    };
+
+    const summaryItems = [];
+    if(tonDiff > 0) summaryItems.push('📈 Об'єм +' + (tonDiff > 1000 ? (tonDiff/1000).toFixed(1)+'т' : tonDiff+'кг'));
+    else if(tonDiff < 0) summaryItems.push('📉 Об'єм ' + (tonDiff < -1000 ? (tonDiff/1000).toFixed(1)+'т' : tonDiff+'кг'));
+    else summaryItems.push('➡️ Об'єм однаковий');
+    const prItems = exComparisons.filter(e=>e.maxWA!==null && e.maxWB > e.maxWA);
+    if(prItems.length > 0) summaryItems.push('🏆 Новий рекорд ваги: ' + prItems.map(e=>e.name+' ('+e.maxWB+'кг)').join(', '));
+    const dropItems = exComparisons.filter(e=>e.maxWA!==null && e.maxWB < e.maxWA);
+    if(dropItems.length > 0) summaryItems.push('⚠️ Менша вага: ' + dropItems.map(e=>e.name).join(', '));
+
+    return React.createElement('div',{className:'cc-overlay',onClick:()=>setCompareModal(null)},
+      React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),style:{maxHeight:'90vh',overflow:'auto',padding:'20px'}},
+        React.createElement('div',{className:'cc-header',style:{marginBottom:'16px'}},
+          React.createElement('div',{className:'cc-title'},'⚡ Порівняння'),
+          React.createElement('button',{className:'cc-btn',onClick:()=>setCompareModal(null)},React.createElement(XIcon))
+        ),
+
+        // Date labels
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'8px',marginBottom:'16px'}},
+          React.createElement('div',{style:{background:'var(--bg3)',borderRadius:'12px',padding:'10px 12px',border:'1px solid var(--border)',textAlign:'center'}},
+            React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'4px'}},'Попереднє'),
+            React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:'var(--text1)'}},fmtShort(keyA))
+          ),
+          React.createElement('div',{style:{background:'rgba(124,58,237,.1)',borderRadius:'12px',padding:'10px 12px',border:'1px solid var(--accent-dark)',textAlign:'center'}},
+            React.createElement('div',{style:{fontSize:'10px',color:'var(--accent2)',textTransform:'uppercase',letterSpacing:'.05em',marginBottom:'4px'}},'Поточне'),
+            React.createElement('div',{style:{fontSize:'13px',fontWeight:700,color:'var(--text1)'}},fmtShort(keyB))
+          )
+        ),
+
+        // Summary
+        React.createElement('div',{style:{background:'var(--bg3)',borderRadius:'14px',padding:'14px',marginBottom:'16px',border:'1px solid var(--border)'}},
+          React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'10px',fontWeight:700}},'Підсумок'),
+          summaryItems.map((s,i)=>React.createElement('div',{key:i,style:{fontSize:'14px',marginBottom:'6px',fontWeight:600,color:'var(--text1)'}},s))
+        ),
+
+        // Key stats comparison
+        React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'6px',marginBottom:'16px'}},
+          [['Об\'єм', tonA>1000?(tonA/1000).toFixed(1)+'т':tonA+'кг', tonB>1000?(tonB/1000).toFixed(1)+'т':tonB+'кг', tonDiff, ''],
+           ['Підходи', setsA, setsB, setsB-setsA, ''],
+           ['Повтори', repsA, repsB, repsB-repsA, '']].map(([lbl,vA,vB,diff,unit],i)=>
+            React.createElement('div',{key:i,style:{background:'var(--bg3)',borderRadius:'12px',padding:'10px 8px',border:'1px solid var(--border)',textAlign:'center'}},
+              React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'6px',fontWeight:700,textTransform:'uppercase',letterSpacing:'.04em'}},lbl),
+              React.createElement('div',{style:{fontSize:'13px',color:'var(--text2)',marginBottom:'2px'}},String(vA)),
+              React.createElement('div',{style:{fontSize:'15px',fontWeight:800,color:'var(--text1)',marginBottom:'4px'}},String(vB)),
+              arrow(Number(String(vA).replace(/[^\d.-]/g,'')), Number(String(vB).replace(/[^\d.-]/g,'')), unit)
+            )
+          )
+        ),
+
+        // Per-exercise comparison
+        exComparisons.length > 0 && React.createElement(React.Fragment, null,
+          React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',textTransform:'uppercase',letterSpacing:'.06em',marginBottom:'10px',fontWeight:700}},'По вправах'),
+          exComparisons.map((ex,i)=>React.createElement('div',{key:i,style:{background:'var(--bg3)',borderRadius:'14px',padding:'14px',marginBottom:'8px',border:'1px solid var(--border)'}},
+            React.createElement('div',{style:{fontWeight:700,fontSize:'14px',color:'var(--text1)',marginBottom:'10px'}},(ex.found ? '' : '🆕 ') + ex.name),
+            React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:'6px'}},
+              [['Max вага', ex.maxWA, ex.maxWB, 'кг'],
+               ['Max повт.', ex.maxRA, ex.maxRB, ''],
+               ['Об\'єм', ex.tonExA, ex.tonExB, 'кг']].map(([lbl,vA,vB,unit],j)=>
+                React.createElement('div',{key:j,style:{background:'var(--bg4)',borderRadius:'10px',padding:'8px',textAlign:'center'}},
+                  React.createElement('div',{style:{fontSize:'9px',color:'var(--text3)',marginBottom:'4px',fontWeight:700,textTransform:'uppercase'}},lbl),
+                  vA !== null ? React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',marginBottom:'2px'}},String(vA)+(unit?' '+unit:'')) : React.createElement('div',{style:{fontSize:'10px',color:'var(--text3)',marginBottom:'2px'}},'—'),
+                  React.createElement('div',{style:{fontSize:'14px',fontWeight:800,color:'var(--text1)',marginBottom:'3px'}},String(vB)+(unit?' '+unit:'')),
+                  arrow(vA, vB)
+                )
+              )
+            )
+          ))
+        )
+      )
     );
   }
 
@@ -1719,6 +1871,7 @@ function App(){
       renderMuscleModal(),
       renderEditModal(),
       renderConfirmModal(),
+      renderCompareModal(),
       renderThemePicker(settings.theme === undefined)
 
   );
