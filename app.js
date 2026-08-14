@@ -900,23 +900,42 @@ function App(){
     const wA = data[keyA], wB = data[keyB];
     if(!wA || !wB) return null;
 
-    // all exercises from both workouts
     const allNames = [];
     [...(wA.exercises||[]), ...(wB.exercises||[])].forEach(e=>{
       if(e.name && !allNames.includes(e.name)) allNames.push(e.name);
     });
 
+    function renderSets(ex, compareEx){
+      if(!ex) return React.createElement('div',{style:{fontSize:'13px',color:'var(--text3)'}},'—');
+      const sets = ex.sets||[];
+      if(!sets.length) return React.createElement('div',{style:{fontSize:'13px',color:'var(--text3)'}},'—');
+      const maxWA = compareEx ? Math.max(...(compareEx.sets||[]).map(s=>Number(s.weight)||0)) : null;
+      const maxRA = compareEx ? Math.max(...(compareEx.sets||[]).map(s=>Number(s.reps)||0)) : null;
+      return React.createElement('div',null,
+        sets.map((s,i)=>{
+          const w = Number(s.weight)||0;
+          const r = Number(s.reps)||0;
+          const up = i===0 && compareEx && (w > maxWA || r > maxRA);
+          return React.createElement('div',{key:i,style:{
+            fontSize: i===0 ? '20px' : '13px',
+            fontWeight: i===0 ? 800 : 400,
+            color: i===0 ? (up ? 'var(--green2)' : 'var(--text1)') : 'var(--text3)',
+            lineHeight: 1.3
+          }}, w+'кг\xd7'+r)
+        })
+      );
+    }
+
     return React.createElement('div',{className:'cc-overlay',onClick:()=>setCompareModal(null)},
       React.createElement('div',{className:'cc-modal',onClick:e=>e.stopPropagation(),
         style:{borderRadius:'20px',overflow:'hidden',padding:'0'}},
 
-        // header
         React.createElement('div',{style:{
           display:'flex',alignItems:'center',justifyContent:'space-between',
           padding:'16px 16px 12px',borderBottom:'1px solid var(--border)',
           background:'var(--bg2)'
         }},
-          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0',flex:1,textAlign:'center'}},
+          React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',flex:1,textAlign:'center'}},
             React.createElement('div',{style:{fontSize:'14px',fontWeight:700,color:'var(--text2)'}}, fmtShort(keyA)),
             React.createElement('div',{style:{fontSize:'14px',fontWeight:700,color:'var(--accent2)'}}, fmtShort(keyB))
           ),
@@ -924,38 +943,18 @@ function App(){
             onClick:()=>setCompareModal(null)},React.createElement(XIcon))
         ),
 
-        // rows
-        React.createElement('div',{style:{overflowY:'auto',maxHeight:'70vh'}},
+        React.createElement('div',{style:{overflowY:'auto',maxHeight:'72vh'}},
           allNames.map((name,i)=>{
             const exA = (wA.exercises||[]).find(e=>e.name===name);
             const exB = (wB.exercises||[]).find(e=>e.name===name);
-            const maxWA = exA ? Math.max(...exA.sets.map(s=>Number(s.weight)||0)) : null;
-            const maxRA = exA ? Math.max(...exA.sets.map(s=>Number(s.reps)||0)) : null;
-            const maxWB = exB ? Math.max(...exB.sets.map(s=>Number(s.weight)||0)) : null;
-            const maxRB = exB ? Math.max(...exB.sets.map(s=>Number(s.reps)||0)) : null;
-            const wUp = maxWA!==null && maxWB!==null && maxWB > maxWA;
-            const rUp = maxRA!==null && maxRB!==null && maxRB > maxRA;
-
             return React.createElement('div',{key:i,style:{
               borderBottom: i<allNames.length-1 ? '1px solid var(--border)' : 'none',
-              padding:'10px 16px'
+              padding:'12px 16px'
             }},
-              React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',fontWeight:600,marginBottom:'6px'}}, name),
-              React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0'}},
-                // prev
-                React.createElement('div',{style:{color:'var(--text3)'}},
-                  exA
-                    ? React.createElement('div',{style:{fontSize:'20px',fontWeight:800}},
-                        (maxWA||'-')+' \u043a\u0433\u00d7'+(maxRA||'-'))
-                    : React.createElement('div',{style:{fontSize:'13px',color:'var(--text3)'}},'—')
-                ),
-                // current
-                React.createElement('div',{style:{color: (wUp||rUp) ? 'var(--green2)' : 'var(--text1)'}},
-                  exB
-                    ? React.createElement('div',{style:{fontSize:'20px',fontWeight:800,color:(wUp||rUp)?'var(--green2)':'var(--text1)'}},
-                        (maxWB||'-')+' \u043a\u0433\u00d7'+(maxRB||'-'))
-                    : React.createElement('div',{style:{fontSize:'13px',color:'var(--text3)'}},'—')
-                )
+              React.createElement('div',{style:{fontSize:'11px',color:'var(--text3)',fontWeight:600,marginBottom:'8px'}}, name),
+              React.createElement('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0',alignItems:'start'}},
+                renderSets(exA, null),
+                renderSets(exB, exA)
               )
             );
           })
